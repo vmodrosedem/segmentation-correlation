@@ -71,8 +71,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
     int count = WindowManager.getImageCount();
     for (int i = 1; i <= count; i++) {
       ImagePlus ip = WindowManager.getImage(WindowManager.getNthImageID(i));
-      combobox.insert(ip.getTitle(), i);
-      combobox2.insert(ip.getTitle(), i);
+      combobox.insert(ip.getID()+ " " + ip.getTitle(), i);
+      combobox2.insert(ip.getID()+ " " + ip.getTitle(), i);
     }
     ImagePlus.addImageListener(this);
     pack();
@@ -83,8 +83,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
   private ImagePlus getFirstImage() {
 
     String selected = combobox.getSelectedItem();
+    int id = Integer.parseInt(selected.substring(0, selected.indexOf(' ')));
     if (selected != null) {
-      ImagePlus ret = WindowManager.getImage(selected);
+      ImagePlus ret = WindowManager.getImage(id);
       if (ret != null) {
         return ret;
       }
@@ -94,8 +95,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
 
   private ImagePlus getSecondImage() {
     String selected = combobox2.getSelectedItem();
+    int id = Integer.parseInt(selected.substring(0, selected.indexOf(' ')));
     if (selected != null) {
-      ImagePlus ret = WindowManager.getImage(selected);
+      ImagePlus ret = WindowManager.getImage(id);
       if (ret != null) {
         return ret;
       }
@@ -112,13 +114,13 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
   }
 
   public void imageOpened(ImagePlus imp) {
-    combobox.add(imp.getTitle());
-    combobox2.add(imp.getTitle());
+    combobox.add(imp.getID() + " " + imp.getTitle());
+    combobox2.add(imp.getID() + " " + imp.getTitle());
   }
 
   public void imageClosed(ImagePlus imp) {
-    combobox.remove(imp.getTitle());
-    combobox2.remove(imp.getTitle());
+    combobox.remove(imp.getID() + " " + imp.getTitle());
+    combobox2.remove(imp.getID() + " " + imp.getTitle());
   }
 
   public void imageUpdated(ImagePlus imp) {
@@ -127,7 +129,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
   public void actionPerformed(ActionEvent e) {
     if ("Run".equals(e.getActionCommand())) {
       ImagePlus firstImage = getFirstImage();
-      if (firstImage != null) {
+      ImagePlus secondImage = getSecondImage();
+      if (firstImage != null && secondImage != null) {
         //max projection
         ZProjector zProjector = new ZProjector();
         zProjector.setImage(firstImage);
@@ -141,7 +144,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
 
         //blur
         GaussianBlur gaussPlugin = new GaussianBlur();
-        double sigma = 10f;
+        double sigma = 10;
         gaussPlugin.blurGaussian(contourImage.getProcessor(), sigma, sigma, 1e-5);
 
 
@@ -154,12 +157,23 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
         //outline
         ((ByteProcessor) contourImage.getProcessor()).outline();
 
-        ImageProcessor imageToShow = firstImage.getProcessor().convertToRGB();
+        //---second image---
+        ByteProcessor ip2 = (ByteProcessor) secondImage.getStack().getProcessor(secondImage.getCurrentSlice()).convertToByte(true);
+        gaussPlugin.blurGaussian(ip2, 5, 5, 1e-5);
+        ip2.threshold(thresholder.getThreshold(AutoThresholder.Method.Otsu, ip2.getHistogram()));
+        ip2.outline();
+        
+        
+        ImageProcessor imageToShow = secondImage.getProcessor().convertToRGB();
         int[] pixels = (int[]) imageToShow.getPixels();
         byte[] contourPixels = (byte[]) contourImage.getProcessor().getPixels();
+        byte[] contourPixels2 = (byte[]) ip2.getPixels();
         for (int i = 0; i < pixels.length; i++) {
           if (contourPixels[i] == 0) {
-            pixels[i] = 0x00ff00;
+            pixels[i] |= 0x00ff00;//green
+          }
+          if(contourPixels2[i] == 0){
+            pixels[i] |= 0xff0000;//red
           }
         }
 
