@@ -29,7 +29,7 @@
             </goals>
             <configuration>
               <tasks>
-                <copy todir="c:\Program Files (x86)\ImageJ\plugins\testik\" file= "target/${project.build.finalName}.jar"/>
+                <copy todir="c:\Program Files (x86)\ImageJ\plugins\" file= "target/${project.build.finalName}.jar"/>
               </tasks>
             </configuration>
           </execution>
