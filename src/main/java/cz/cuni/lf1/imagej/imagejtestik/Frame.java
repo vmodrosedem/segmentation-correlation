@@ -4,6 +4,7 @@
  */
 package cz.cuni.lf1.imagej.imagejtestik;
 
+import ij.IJ;
 import ij.ImageListener;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -73,7 +74,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
       ImagePlus ip = WindowManager.getImage(WindowManager.getNthImageID(i));
       combobox.insert(ip.getID()+ " " + ip.getTitle(), i);
       combobox2.insert(ip.getID()+ " " + ip.getTitle(), i);
-    }
+    }    
     ImagePlus.addImageListener(this);
     pack();
     GUI.center(this);
@@ -131,31 +132,28 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
       ImagePlus firstImage = getFirstImage();
       ImagePlus secondImage = getSecondImage();
       if (firstImage != null && secondImage != null) {
-        //max projection
+        ImagePlus scatter = new ImagePlus("scatter", Process.scatterPlot(
+                firstImage.getStack().getProcessor(firstImage.getCurrentSlice()), 
+                secondImage.getStack().getProcessor(secondImage.getCurrentSlice())));
+        scatter.show();
+        
+        //maximum projection
         ZProjector zProjector = new ZProjector();
         zProjector.setImage(firstImage);
         zProjector.setMethod(ZProjector.MAX_METHOD);
         zProjector.setStopSlice(firstImage.getStackSize());
         zProjector.doProjection();
-        ImagePlus contourImage = zProjector.getProjection();
-
-        //convert to 8-bit
-        contourImage.setProcessor(contourImage.getProcessor().convertToByte(true));
-
+        ByteProcessor contourImage = (ByteProcessor) zProjector.getProjection().getProcessor().convertToByte(true);
         //blur
         GaussianBlur gaussPlugin = new GaussianBlur();
         double sigma = 10;
-        gaussPlugin.blurGaussian(contourImage.getProcessor(), sigma, sigma, 1e-5);
-
-
+        gaussPlugin.blurGaussian(contourImage, sigma, sigma, 1e-5);
         //threshold
         AutoThresholder thresholder = new AutoThresholder();
-        int thresholdValue = thresholder.getThreshold(AutoThresholder.Method.Otsu, contourImage.getProcessor().getHistogram());
-        contourImage.getProcessor().threshold(thresholdValue);
-        //contourImage.show();
-
+        int thresholdValue = thresholder.getThreshold(AutoThresholder.Method.Otsu, contourImage.getHistogram());
+        contourImage.threshold(thresholdValue);
         //outline
-        ((ByteProcessor) contourImage.getProcessor()).outline();
+        contourImage.outline();
 
         //---second image---
         ByteProcessor ip2 = (ByteProcessor) secondImage.getStack().getProcessor(secondImage.getCurrentSlice()).convertToByte(true);
@@ -166,7 +164,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener 
         
         ImageProcessor imageToShow = secondImage.getProcessor().convertToRGB();
         int[] pixels = (int[]) imageToShow.getPixels();
-        byte[] contourPixels = (byte[]) contourImage.getProcessor().getPixels();
+        byte[] contourPixels = (byte[]) contourImage.getPixels();
         byte[] contourPixels2 = (byte[]) ip2.getPixels();
         for (int i = 0; i < pixels.length; i++) {
           if (contourPixels[i] == 0) {
