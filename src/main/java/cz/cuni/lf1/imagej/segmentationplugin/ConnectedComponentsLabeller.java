@@ -8,6 +8,8 @@ import ij.ImagePlus;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  *
@@ -23,57 +25,26 @@ public class ConnectedComponentsLabeller {
     next = 1;
   }
 
-  public void discardSmallRegions(ImagePlus image, int pixels) {
+  public void filterRegions(ImagePlus image, int minPixels, boolean discardTouching) {
+    if (minPixels <= 0 && !discardTouching) {
+      return;
+    }
     boolean isStack = image.getStackSize() > 1;
-    
-    ImageProcessor sp = new ShortProcessor(image.getWidth(), image.getHeight());  //new short processor, byte is too small and overflows
+    ImageProcessor labelsProcessor = new ShortProcessor(image.getWidth(), image.getHeight());  //new short processor, byte is too small and overflows
     for (int slice = 1; slice <= image.getStackSize(); slice++) {
-      resetUnionFind();
-      
-      ImageProcessor ip = isStack ? image.getStack().getProcessor(slice) : image.getProcessor();
-      //copy to short processor
-      byte[] px = (byte[]) ip.getPixels();
-      short[] spx = (short[]) sp.getPixels();
-      for(int i = 0; i < px.length; i++){
-        spx[i] = (short) (px[i] & 0xff);
-      }
-      //first pass
-      for (int column = 0; column < image.getWidth(); column++) {
-        for (int row = 0; row < image.getHeight(); row++) {
-          int pixValue = sp.get(row, column);
-          if (pixValue != 0) {
-            int north = row > 0 ? sp.get(row - 1, column) : 0;
-            int west = column > 0 ? sp.get(row, column - 1) : 0;
-
-            if (north == 0 && west == 0) {
-              sp.set(row, column, makeSet());               //make new region
-            } else if (north > 0 && west > 0 && north != west) {
-              union(north, west);                            //merge regions
-              sp.set(row, column, north);
-            } else {
-              sp.set(row, column, Math.max(north, west));    //assign to neighboring region
-            }
-
-          }
-        }
-      }
-      //second pass
-      for (int column = 0; column < image.getWidth(); column++) {
-        for (int row = 0; row < image.getHeight(); row++) {
-          int pixValue = sp.get(row, column);
-          if (pixValue != 0) {
-            sp.set(row, column, find(pixValue));
-          }
-        }
-      }
-      //discard small ones
-      int[] hist = sp.getHistogram();
-      for (int i = 0; i < sp.getPixelCount(); i++) {
-        if (ip.get(i) != 0) {
-          if (hist[sp.get(i)] >= pixels) {
-            ip.set(i, (byte) 255);
+      //label components
+      ImageProcessor originalProcessor = isStack ? image.getStack().getProcessor(slice) : image.getProcessor();
+      componentLabelling(originalProcessor, labelsProcessor);
+      //find which regions that are touching the border
+      Set<Integer> toDiscard = discardTouching ? findRegionsTouchingBorder(labelsProcessor) : null;
+      //discard small and marked regions
+      int[] hist = labelsProcessor.getHistogram();
+      for (int i = 0; i < labelsProcessor.getPixelCount(); i++) {
+        if (originalProcessor.get(i) != 0) {
+          if (hist[labelsProcessor.get(i)] >= minPixels && (!discardTouching || !toDiscard.contains(labelsProcessor.get(i)))) {
+            originalProcessor.set(i, (byte) 255);
           } else {
-            ip.set(i, 0);
+            originalProcessor.set(i, 0);
           }
         }
       }
@@ -113,5 +84,69 @@ public class ConnectedComponentsLabeller {
     parent.clear();
     parent.add(0);
     next = 1;
+  }
+
+  private Set<Integer> findRegionsTouchingBorder(ImageProcessor sp) {
+    Set<Integer> toDiscard = new HashSet<Integer>();
+    for (int i = 0; i < sp.getWidth(); i++) {
+      int pix1 = sp.getPixel(i, 0);
+      if (pix1 > 0) {
+        toDiscard.add(pix1);
+      }
+      int pix2 = sp.getPixel(i, sp.getHeight() - 1);
+      if (pix2 > 0) {
+        toDiscard.add(pix2);
+      }
+    }
+    for (int i = 0; i < sp.getHeight(); i++) {
+      int pix1 = sp.getPixel(0, i);
+      if (pix1 > 0) {
+        toDiscard.add(pix1);
+      }
+      int pix2 = sp.getPixel(sp.getWidth() - 1, i);
+      if (pix2 > 0) {
+        toDiscard.add(pix2);
+      }
+    }
+    return toDiscard;
+  }
+
+  private void componentLabelling(ImageProcessor origProcessor, ImageProcessor labelProcessor) {
+    resetUnionFind();
+    //copy to short processor
+    byte[] px = (byte[]) origProcessor.getPixels();
+    short[] spx = (short[]) labelProcessor.getPixels();
+    for (int i = 0; i < px.length; i++) {
+      spx[i] = (short) (px[i] & 0xff);
+    }
+    //first pass
+    for (int column = 0; column < origProcessor.getWidth(); column++) {
+      for (int row = 0; row < origProcessor.getHeight(); row++) {
+        int pixValue = labelProcessor.get(row, column);
+        if (pixValue != 0) {
+          int north = row > 0 ? labelProcessor.get(row - 1, column) : 0;
+          int west = column > 0 ? labelProcessor.get(row, column - 1) : 0;
+
+          if (north == 0 && west == 0) {
+            labelProcessor.set(row, column, makeSet());               //make new region
+          } else if (north > 0 && west > 0 && north != west) {
+            union(north, west);                            //merge regions
+            labelProcessor.set(row, column, north);
+          } else {
+            labelProcessor.set(row, column, Math.max(north, west));    //assign to neighboring region
+          }
+
+        }
+      }
+    }
+    //second pass
+    for (int column = 0; column < origProcessor.getWidth(); column++) {
+      for (int row = 0; row < origProcessor.getHeight(); row++) {
+        int pixValue = labelProcessor.get(row, column);
+        if (pixValue != 0) {
+          labelProcessor.set(row, column, find(pixValue));
+        }
+      }
+    }
   }
 }

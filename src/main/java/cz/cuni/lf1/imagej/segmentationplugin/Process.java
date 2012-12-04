@@ -4,6 +4,7 @@
  */
 package cz.cuni.lf1.imagej.segmentationplugin;
 
+import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.plugin.ZProjector;
@@ -24,13 +25,13 @@ public class Process {
     boolean singleImage = image1.getStackSize() == 1;
     boolean bit16 = (image1.getType() == ImagePlus.GRAY16);
 
-    ImageProcessor plot = new ShortProcessor(128, 128);
+    ImageProcessor plot = new ShortProcessor(256, 256);
 
     if (bit16) {
       for (int i = 1; i <= image1.getStackSize(); i++) {
         short[] pixels1 = (short[]) (singleImage ? image1.getProcessor().getPixels() : image1.getStack().getProcessor(i).getPixels());
         short[] pixels2 = (short[]) (singleImage ? image2.getProcessor().getPixels() : image2.getStack().getProcessor(i).getPixels());
-        byte[] pixelsMask = (byte[]) (!mask.isComposite() ? mask.getProcessor().getPixels() : mask.getStack().getProcessor(i).getPixels());
+        byte[] pixelsMask = (byte[]) ((mask.getStackSize() == 1) ? mask.getProcessor().getPixels() : mask.getStack().getProcessor(i).getPixels());
 
         for (int j = 0; j < pixels1.length; j++) {
           if (pixelsMask[j] != 0) {
@@ -48,14 +49,14 @@ public class Process {
       for (int i = 1; i <= image1.getStackSize(); i++) {
         byte[] pixels1 = (byte[]) (singleImage ? image1.getProcessor().getPixels() : image1.getStack().getProcessor(i).getPixels());
         byte[] pixels2 = (byte[]) (singleImage ? image2.getProcessor().getPixels() : image2.getStack().getProcessor(i).getPixels());
-        byte[] pixelsMask = (byte[]) (!mask.isComposite() ? mask.getProcessor().getPixels() : mask.getStack().getProcessor(i).getPixels());
+        byte[] pixelsMask = (byte[]) ((mask.getStackSize() == 1) ? mask.getProcessor().getPixels() : mask.getStack().getProcessor(i).getPixels());
 
         for (int j = 0; j < pixels1.length; j++) {
           if (pixelsMask[j] != 0) {
             int intensity1 = pixels1[j] & 0xff;
             int intensity2 = pixels2[j] & 0xff;
-            int value = plot.get(intensity1, intensity2);
-            plot.set(intensity1, intensity2, value + 1);
+            int value = plot.getPixel(intensity1, intensity2);
+            plot.putPixel(intensity1, intensity2, value + 1);
           }
         }
       }
@@ -129,6 +130,7 @@ public class Process {
 
       resultStack.setPixels(ip.getPixels(), i);
       resultStack.setSliceLabel("" + i, i);
+      IJ.showProgress(i, image.getStackSize());
     }
 
     return new ImagePlus("mask", resultStack);
@@ -238,10 +240,9 @@ public class Process {
 
     }
   }
-  
-  public static void discardSmallRegions(ImagePlus image, int pixels){
+
+  public static void filterRegions(ImagePlus image, int pixels, boolean discardBorderRegions) {
     ConnectedComponentsLabeller labeller = new ConnectedComponentsLabeller();
-    labeller.discardSmallRegions(image, pixels);
+    labeller.filterRegions(image, pixels, discardBorderRegions);
   }
-  
 }
