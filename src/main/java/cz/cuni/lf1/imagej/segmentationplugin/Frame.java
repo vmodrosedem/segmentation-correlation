@@ -344,28 +344,26 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           imageToShow = Process.convertStackToRGB(getSecondImage());
         }
 
-        //first image
+        //create segmentation masks
         if (params.useMaximumProjection1) {
           mask1 = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
         } else {
           mask1 = Process.segmentStack(getFirstImage(), params.sigma1, params.threshold1, params.fillHoles1);
         }
         Process.filterRegions(mask1, params.minArea1, params.border1);
-        Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
-
-        //second image
         mask2 = Process.segmentStack(getSecondImage(), params.sigma2, params.threshold2, params.fillHoles2);
         Process.filterRegions(mask2, params.minArea2, params.border2);
-        Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
-
-        //scatter
-        if (mask1 != null && mask2 != null) {
-          Process.andMaskStack(mask2, mask1);
-          getScatterImage().setImage(Process.scatterPlot(getFirstImage(), getSecondImage(), mask2));
-          getScatterImage().show();
-          getScatterImage().updateAndDraw();
-        }
+        
+        //scattergram
+        Process.andMaskStack(mask2, mask1);
+        getScatterImage().setImage(Process.scatterPlot(getFirstImage(), getSecondImage(), mask2));
+        getScatterImage().show();
+        getScatterImage().updateAndDraw();
+        IJ.showMessage("Pearsons correlation coefficient: " + Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2));
+        mask2.show();
         //show preview
+        Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
+        Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
         getResultImage().setImage(imageToShow);
         getResultImage().show();
         getResultImage().updateAndDraw();

@@ -74,8 +74,8 @@ public class Process {
     }
 
     for (int i = 1; i <= res.getStackSize(); i++) {
-      byte[] pixels1 = (byte[]) (res.isComposite() ? res.getStack().getProcessor(i).getPixels() : res.getProcessor().getPixels());
-      byte[] pixels2 = (byte[]) (mask.isComposite() ? mask.getStack().getProcessor(i).getPixels() : mask.getProcessor().getPixels());
+      byte[] pixels1 = (byte[]) ((res.getStackSize() == 1) ? res.getProcessor().getPixels() : res.getStack().getProcessor(i).getPixels());
+      byte[] pixels2 = (byte[]) ((mask.getStackSize() == 1) ? mask.getProcessor().getPixels() : mask.getStack().getProcessor(i).getPixels());
       for (int j = 0; j < pixels1.length; j++) {
         if (pixels1[j] != 0 && pixels2[j] == 0) {
           pixels1[j] = 0;
@@ -244,5 +244,48 @@ public class Process {
   public static void filterRegions(ImagePlus image, int pixels, boolean discardBorderRegions) {
     ConnectedComponentsLabeller labeller = new ConnectedComponentsLabeller();
     labeller.filterRegions(image, pixels, discardBorderRegions);
+  }
+
+  public static double computeCorrelation(ImagePlus channel1, ImagePlus channel2, ImagePlus mask) {
+    //first pass, compute means
+    long ch1Sum = 0;
+    long ch2Sum = 0;
+    long pixels = 0;
+    for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+      ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+      ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
+      ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+      for (int i = 0; i < ch1Processor.getPixelCount(); i++) {
+        if (maskProcessor.get(i) != 0) {
+          ch1Sum += ch1Processor.get(i);
+          ch2Sum += ch2Processor.get(i);
+          pixels++;
+        }
+      }
+    }
+    double ch1Mean = (double) ch1Sum / pixels;
+    double ch2Mean = (double) ch2Sum / pixels;
+
+    //second pass, compute sums
+    double sumRG = 0;
+    double sumRSquared = 0;
+    double sumGSquared = 0;
+    for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+      ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+      ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
+      ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+      for (int i = 0; i < ch1Processor.getPixelCount(); i++) {
+        if (maskProcessor.get(i) != 0) {
+          double dif = ch1Processor.get(i) - ch1Mean;
+          sumRSquared += dif * dif;
+          double dif2 = ch2Processor.get(i) - ch2Mean;
+          sumRG += dif * dif2;
+          sumGSquared += dif * dif;
+        }
+      }
+    }
+    //IJ.showMessage("ch1Mean: " + ch1Mean + "\nch2Mean: " + ch2Mean + "\nsumRG: " + sumRG + "\nsumRSquared: " + sumRSquared + "\nsumGSquared: " + sumGSquared);
+    return sumRG / Math.sqrt(sumRSquared * sumGSquared);
+
   }
 }
