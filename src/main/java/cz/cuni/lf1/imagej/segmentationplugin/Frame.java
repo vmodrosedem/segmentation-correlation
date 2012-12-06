@@ -380,6 +380,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         textOutput.clear();
         //scattergram stack and correlation calculation
         ImageStack scatterStack = new ImageStack(256, 256);
+        //cells
         for (int i = 0; i < cellMasks.length; i++) {
           IJ.showStatus("processing cell " + (i + 1));
           ImagePlus mask = mask2.duplicate();
@@ -389,25 +390,25 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask);
           textOutput.appendWithoutUpdate((i + 1) + "\t" + pcc);
         }
-        getScatterImage().setImage(new ImagePlus("Scattergram", scatterStack));
-
+        //all cells
         Process.andMaskStack(mask2, mask1);
+        scatterStack.addSlice("all cells", Process.scatterPlot(getFirstImage(), getSecondImage(), mask2).getProcessor());
         double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2);
         textOutput.appendLine("all\t" + pcc);
-
+        //roi
         if (getFirstImage().getRoi() != null) {
           ImagePlus roiMask = new ImagePlus("",new ByteProcessor(getFirstImage().getWidth(), getFirstImage().getHeight()));
           roiMask.getProcessor().setColor(255);
           roiMask.getProcessor().fill(getFirstImage().getRoi());
           pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
           textOutput.appendLine("roi\t" + pcc);
+          
+          scatterStack.addSlice("ROI", Process.scatterPlot(getFirstImage(), getSecondImage(), roiMask).getProcessor());
         }
-
-
+        
+        getScatterImage().setImage(new ImagePlus("Scattergram", scatterStack));
         getScatterImage().show();
         getScatterImage().updateAndDraw();
-
-
 
         //show preview
         IJ.showStatus("generating preview image");
@@ -421,7 +422,6 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         WindowManager.setTempCurrentImage(getScatterImage());
         LutLoader l = new LutLoader();
         l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
-
       }
     } catch (Throwable t) {
       t.printStackTrace();
