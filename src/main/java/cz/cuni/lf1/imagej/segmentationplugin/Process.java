@@ -118,15 +118,16 @@ public class Process {
     GaussianBlur gaussPlugin = new GaussianBlur();
     for (int i = 1; i <= image.getStackSize(); i++) {
       ImageProcessor ip;
-      if (image.getType() == ImagePlus.GRAY8) {
+      if (image.getType() == ImagePlus.GRAY32) {
         ip = (singleImage)
                 ? (image.getProcessor().duplicate())
                 : (image.getStack().getProcessor(i).duplicate());
       } else {
         ip = (singleImage)
-                ? (image.getProcessor().convertToByte(true))
-                : (image.getStack().getProcessor(i).convertToByte(true));
+                ? (image.getProcessor().convertToFloat())
+                : (image.getStack().getProcessor(i).convertToFloat());
       }
+      ip  = ip.convertToByte(true);
       gaussPlugin.blurGaussian(ip, sigma, sigma, 1e-5);
       ip.threshold(threshold);
       if (fillHoles) {
