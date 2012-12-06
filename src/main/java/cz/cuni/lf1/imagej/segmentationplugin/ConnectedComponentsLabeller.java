@@ -5,10 +5,13 @@
 package cz.cuni.lf1.imagej.segmentationplugin;
 
 import ij.ImagePlus;
+import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -25,6 +28,36 @@ public class ConnectedComponentsLabeller {
     next = 1;
   }
 
+  public ImagePlus[] splitCellRegions(ImagePlus mask){
+    ImageProcessor maskProcessor = mask.getProcessor();
+    ShortProcessor labellingProcessor = new ShortProcessor(mask.getWidth(), mask.getHeight());
+    componentLabelling(maskProcessor, labellingProcessor);
+    Map<Integer,Integer> valueToIndex = new HashMap<Integer, Integer>();
+    int nextIndex = 0;
+    for(int i = 0; i < labellingProcessor.getPixelCount(); i++){
+      int value = labellingProcessor.get(i);
+      if(value != 0){
+        if(!valueToIndex.containsKey(value)){
+          valueToIndex.put(value, nextIndex);
+          nextIndex++;
+        }
+      }
+    }
+    
+    ImagePlus[] ret = new ImagePlus[nextIndex];
+    for(int i = 0; i < ret.length; i++){
+      ret[i] = new ImagePlus("cell "+ (i+1), new ByteProcessor(mask.getWidth(), mask.getHeight()));
+    }
+    
+    for(int i = 0; i < labellingProcessor.getPixelCount(); i++){
+      int value = labellingProcessor.get(i);
+      if(value != 0){
+        ret[valueToIndex.get(value)].getProcessor().set(i, (byte)255);
+      }
+    }
+    return ret;
+  }
+  
   public void filterRegions(ImagePlus image, int minPixels, boolean discardTouching) {
     if (minPixels <= 0 && !discardTouching) {
       return;

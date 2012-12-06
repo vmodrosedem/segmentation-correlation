@@ -9,14 +9,19 @@ import static java.awt.GridBagConstraints.*;
 import ij.IJ;
 import ij.ImageListener;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.GUI;
+import ij.plugin.LutLoader;
 import ij.plugin.frame.PlugInFrame;
 import ij.process.AutoThresholder;
+import ij.process.ByteProcessor;
+import ij.text.TextPanel;
 import java.awt.Button;
 import java.awt.Checkbox;
 import java.awt.CheckboxGroup;
 import java.awt.Choice;
+import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -59,6 +64,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   Button runButton;
   ImagePlus resultImage;
   ImagePlus scatterPlot;
+  TextPanel textOutput;
 
   public Frame() {
     super("Segmentation options");
@@ -132,7 +138,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     //area threshold
     pos = new GridBagConstraints(0, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Min area [px]:"), pos);
-    areaThresholdTextField1 = new TextField("");
+    areaThresholdTextField1 = new TextField("5000");
     areaThresholdTextField1.addKeyListener(this);
     pos = new GridBagConstraints(1, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(areaThresholdTextField1, pos);
@@ -171,6 +177,15 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     runButton.addActionListener(this);
     pos = new GridBagConstraints(3, 11, 1, 1, 0, 0, LINE_END, NONE, insets, 0, 0);
     this.add(runButton, pos);
+
+    textOutput = new TextPanel("correlation coefficient");
+    textOutput.setColumnHeadings("Cell #\tPearson'scorrelation coefficient");
+    Dimension dim = textOutput.getMinimumSize();
+    dim.height = 150;
+    textOutput.setMinimumSize(dim);
+    textOutput.setPreferredSize(dim);
+    pos = new GridBagConstraints(0, 12, 4, 4, 0, 1, CENTER, BOTH, insets, 0, 0);
+    this.add(textOutput, pos);
 
     addKeyListener(this);
 
@@ -226,8 +241,11 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   }
 
   public void imageClosed(ImagePlus imp) {
-    image1Choice.remove(imp.getID() + " " + imp.getTitle());
-    image2Choice.remove(imp.getID() + " " + imp.getTitle());
+    try {
+      image1Choice.remove(imp.getID() + " " + imp.getTitle());
+      image2Choice.remove(imp.getID() + " " + imp.getTitle());
+    } catch (IllegalArgumentException ex) {
+    }
   }
 
   public void imageUpdated(ImagePlus imp) {
@@ -343,7 +361,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         } else {
           imageToShow = Process.convertStackToRGB(getSecondImage());
         }
-
+        IJ.showStatus("segmentation channel 1");
         //create segmentation masks
         if (params.useMaximumProjection1) {
           mask1 = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
@@ -351,22 +369,59 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           mask1 = Process.segmentStack(getFirstImage(), params.sigma1, params.threshold1, params.fillHoles1);
         }
         Process.filterRegions(mask1, params.minArea1, params.border1);
+        IJ.showStatus("segmentation channel 2");
         mask2 = Process.segmentStack(getSecondImage(), params.sigma2, params.threshold2, params.fillHoles2);
         Process.filterRegions(mask2, params.minArea2, params.border2);
-        
-        //scattergram
+
+        //split cells
+        IJ.showStatus("splitting cell regions");
+        ImagePlus[] cellMasks = Process.splitCellRegions(mask1);
+
+        textOutput.clear();
+        //scattergram stack and correlation calculation
+        ImageStack scatterStack = new ImageStack(256, 256);
+        for (int i = 0; i < cellMasks.length; i++) {
+          IJ.showStatus("processing cell " + (i + 1));
+          ImagePlus mask = mask2.duplicate();
+          Process.andMaskStack(mask, cellMasks[i]);
+          scatterStack.addSlice("Cell " + (i + 1), Process.scatterPlot(getFirstImage(), getSecondImage(), mask).getProcessor());
+
+          double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask);
+          textOutput.appendWithoutUpdate((i + 1) + "\t" + pcc);
+        }
+        getScatterImage().setImage(new ImagePlus("Scattergram", scatterStack));
+
         Process.andMaskStack(mask2, mask1);
-        getScatterImage().setImage(Process.scatterPlot(getFirstImage(), getSecondImage(), mask2));
+        double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2);
+        textOutput.appendLine("all\t" + pcc);
+
+        if (getFirstImage().getRoi() != null) {
+          ImagePlus roiMask = new ImagePlus("",new ByteProcessor(getFirstImage().getWidth(), getFirstImage().getHeight()));
+          roiMask.getProcessor().setColor(255);
+          roiMask.getProcessor().fill(getFirstImage().getRoi());
+          pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
+          textOutput.appendLine("roi\t" + pcc);
+        }
+
+
         getScatterImage().show();
         getScatterImage().updateAndDraw();
-        IJ.showMessage("Pearsons correlation coefficient: " + Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2));
-        mask2.show();
+
+
+
         //show preview
+        IJ.showStatus("generating preview image");
         Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
         Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
         getResultImage().setImage(imageToShow);
         getResultImage().show();
+        Process.drawCellNumbers(getResultImage(), cellMasks);
         getResultImage().updateAndDraw();
+
+        WindowManager.setTempCurrentImage(getScatterImage());
+        LutLoader l = new LutLoader();
+        l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
+
       }
     } catch (Throwable t) {
       t.printStackTrace();

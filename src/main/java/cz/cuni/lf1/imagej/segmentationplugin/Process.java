@@ -7,6 +7,9 @@ package cz.cuni.lf1.imagej.segmentationplugin;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.gui.Overlay;
+import ij.gui.Roi;
+import ij.gui.TextRoi;
 import ij.plugin.ZProjector;
 import ij.plugin.filter.GaussianBlur;
 import ij.process.AutoThresholder;
@@ -14,6 +17,8 @@ import ij.process.ByteProcessor;
 import ij.process.FloodFiller;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
+import java.awt.Color;
+import java.awt.Point;
 
 /**
  *
@@ -39,8 +44,8 @@ public class Process {
             intensity1 >>= 8;
             int intensity2 = pixels2[j] & 0xffff;
             intensity2 >>= 8;
-            int value = plot.getPixel(intensity1, intensity2);
-            plot.putPixel(intensity1, intensity2, value + 1);
+            int value = plot.getPixel(intensity1, 255 - intensity2);
+            plot.putPixel(intensity1, 255 - intensity2, value + 1);
           }
         }
 
@@ -55,8 +60,8 @@ public class Process {
           if (pixelsMask[j] != 0) {
             int intensity1 = pixels1[j] & 0xff;
             int intensity2 = pixels2[j] & 0xff;
-            int value = plot.getPixel(intensity1, intensity2);
-            plot.putPixel(intensity1, intensity2, value + 1);
+            int value = plot.getPixel(intensity1, 255 - intensity2);
+            plot.putPixel(intensity1, 255 - intensity2, value + 1);
           }
         }
       }
@@ -241,6 +246,17 @@ public class Process {
     }
   }
 
+  public static void drawCellNumbers(ImagePlus rgbImage, ImagePlus[] cellMasks) {
+    Overlay o = new Overlay();
+    for (int i = 0; i < cellMasks.length; i++) {
+      Point p = computeCentroid(cellMasks[i].getProcessor());
+      Roi roi = new TextRoi(p.x, p.y, i + 1 + "");
+      roi.setStrokeColor(Color.green);
+      o.add(roi);
+    }
+    rgbImage.setOverlay(o);
+  }
+
   public static void filterRegions(ImagePlus image, int pixels, boolean discardBorderRegions) {
     ConnectedComponentsLabeller labeller = new ConnectedComponentsLabeller();
     labeller.filterRegions(image, pixels, discardBorderRegions);
@@ -248,9 +264,9 @@ public class Process {
 
   public static double computeCorrelation(ImagePlus channel1, ImagePlus channel2, ImagePlus mask) {
     //first pass, compute means
-    long ch1Sum = 0;
-    long ch2Sum = 0;
-    long pixels = 0;
+    double ch1Sum = 0;
+    double ch2Sum = 0;
+    double pixels = 0;
     for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
       ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
       ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
@@ -263,8 +279,8 @@ public class Process {
         }
       }
     }
-    double ch1Mean = (double) ch1Sum / pixels;
-    double ch2Mean = (double) ch2Sum / pixels;
+    double ch1Mean = ch1Sum / pixels;
+    double ch2Mean = ch2Sum / pixels;
 
     //second pass, compute sums
     double sumRG = 0;
@@ -280,12 +296,47 @@ public class Process {
           sumRSquared += dif * dif;
           double dif2 = ch2Processor.get(i) - ch2Mean;
           sumRG += dif * dif2;
-          sumGSquared += dif * dif;
+          sumGSquared += dif2 * dif2;
         }
       }
     }
     //IJ.showMessage("ch1Mean: " + ch1Mean + "\nch2Mean: " + ch2Mean + "\nsumRG: " + sumRG + "\nsumRSquared: " + sumRSquared + "\nsumGSquared: " + sumGSquared);
     return sumRG / Math.sqrt(sumRSquared * sumGSquared);
 
+  }
+
+  public static ImagePlus[] splitCellRegions(ImagePlus mask) {
+    ConnectedComponentsLabeller l = new ConnectedComponentsLabeller();
+    return l.splitCellRegions(mask);
+
+  }
+
+  public static void showCellMasks(ImagePlus mask) {
+    ConnectedComponentsLabeller l = new ConnectedComponentsLabeller();
+    ImagePlus[] imgs = l.splitCellRegions(mask);
+
+    for (int i = 0; i < imgs.length; i++) {
+      imgs[i].show();
+    }
+  }
+
+  public static Point computeCentroid(ImageProcessor ip) {
+    int x = 0;
+    int y = 0;
+    int area = 0;
+
+    for (int i = 0; i < ip.getWidth(); i++) {
+      for (int j = 0; j < ip.getHeight(); j++) {
+        if (ip.get(i, j) != 0) {
+          x += i;
+          y += j;
+          area += 1;
+        }
+      }
+    }
+
+    x = x / area;
+    y = y / area;
+    return new Point(x, y);
   }
 }
