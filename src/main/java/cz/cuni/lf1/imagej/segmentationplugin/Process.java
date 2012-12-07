@@ -14,6 +14,7 @@ import ij.plugin.ZProjector;
 import ij.plugin.filter.GaussianBlur;
 import ij.process.AutoThresholder;
 import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
 import ij.process.FloodFiller;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
@@ -89,6 +90,27 @@ public class Process {
     }
   }
 
+  public static ImagePlus convertToRGBOverlay(ImagePlus green, ImagePlus red) {
+    ImageStack newStack = new ImageStack(green.getWidth(), green.getHeight());
+    for (int i = 1; i <= green.getStackSize(); i++) {
+      ImageProcessor ip = new ColorProcessor(green.getWidth(), green.getHeight());
+      ImageProcessor gr = (green.getStackSize() == 1)?green.getProcessor():green.getStack().getProcessor(i);
+      ImageProcessor re = (green.getStackSize() == 1)?red.getProcessor():red.getStack().getProcessor(i);
+      for(int p = 0; p < ip.getPixelCount(); p++){
+        int greenPix = gr.get(p);
+        int redPix = re.get(p);
+        if(green.getType() == ImagePlus.GRAY16){
+          greenPix = greenPix/256;
+          redPix = redPix/256;
+        }
+        ip.set(p, (redPix << 16) | (greenPix <<8));
+      }
+      newStack.addSlice(i +"", ip);
+      
+    }
+    return new ImagePlus("result", newStack);
+  }
+
   public static ImagePlus convertStackToRGB(ImagePlus imp) {
     if (imp.getStackSize() == 1) {
       return new ImagePlus("", imp.getProcessor().convertToRGB());
@@ -127,7 +149,7 @@ public class Process {
                 ? (image.getProcessor().convertToFloat())
                 : (image.getStack().getProcessor(i).convertToFloat());
       }
-      ip  = ip.convertToByte(true);
+      ip = ip.convertToByte(true);
       gaussPlugin.blurGaussian(ip, sigma, sigma, 1e-5);
       ip.threshold(threshold);
       if (fillHoles) {

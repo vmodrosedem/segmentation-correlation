@@ -12,6 +12,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.GUI;
+import ij.gui.Roi;
 import ij.plugin.LutLoader;
 import ij.plugin.frame.PlugInFrame;
 import ij.process.AutoThresholder;
@@ -26,6 +27,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Label;
+import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.TextField;
@@ -33,6 +35,10 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 
 /**
  * User interface for segmentation plugin
@@ -61,6 +67,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   CheckboxGroup group;
   Checkbox preview1;
   Checkbox preview2;
+  Checkbox preview3;
   Button runButton;
   ImagePlus resultImage;
   ImagePlus scatterPlot;
@@ -73,20 +80,28 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
 
     //data input
     Insets insets = new Insets(5, 5, 1, 1);
-    GridBagConstraints pos = new GridBagConstraints(0, 0, 2, 1, 0, 0, CENTER, NONE, insets, 0, 0);
+    GridBagConstraints pos = new GridBagConstraints(0, 0, 3, 1, 0, 0, CENTER, NONE, insets, 0, 0);
     this.add(new Label("Channel 1"), pos);
-    pos = new GridBagConstraints(2, 0, 2, 1, 0, 0, CENTER, NONE, insets, 0, 0);
+    pos = new GridBagConstraints(3, 0, 3, 1, 0, 0, CENTER, NONE, insets, 0, 0);
     this.add(new Label("Channel 2"), pos);
     image1Choice = new Choice();
     image2Choice = new Choice();
+    image1Choice.addItemListener(this);
+    image2Choice.addItemListener(this);
     pos = new GridBagConstraints(0, 1, 1, 1, 0, 0, LINE_START, NONE, insets, 0, 0);
     this.add(new Label("Data:"), pos);
-    pos = new GridBagConstraints(1, 1, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    pos = new GridBagConstraints(1, 1, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(image1Choice, pos);
-    pos = new GridBagConstraints(2, 1, 1, 1, 0, 0, LINE_START, NONE, insets, 0, 0);
+    pos = new GridBagConstraints(3, 1, 1, 1, 0, 0, LINE_START, NONE, insets, 0, 0);
     this.add(new Label("Data:"), pos);
-    pos = new GridBagConstraints(3, 1, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    pos = new GridBagConstraints(4, 1, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(image2Choice, pos);
+    pack();
+    Dimension size = image1Choice.getPreferredSize();
+    size.width = 100;
+    image1Choice.setPreferredSize(size);
+    image2Choice.setPreferredSize(size);
+
     int count = WindowManager.getImageCount();
     for (int i = 1; i <= count; i++) {
       ImagePlus ip = WindowManager.getImage(WindowManager.getNthImageID(i));
@@ -100,53 +115,53 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     this.add(new Label("Blur sigma:"), pos);
     sigma1TextField = new TextField(DEFAULT_SIGMA1 + "");
     sigma1TextField.addKeyListener(this);
-    pos = new GridBagConstraints(1, 3, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
-    this.add(sigma1TextField, pos);
     pos = new GridBagConstraints(2, 3, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    this.add(sigma1TextField, pos);
+    pos = new GridBagConstraints(3, 3, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Blur sigma:"), pos);
     sigma2TextField = new TextField(DEFAULT_SIGMA2 + "");
     sigma2TextField.addKeyListener(this);
-    pos = new GridBagConstraints(3, 3, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    pos = new GridBagConstraints(5, 3, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(sigma2TextField, pos);
     //threshold
     pos = new GridBagConstraints(0, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Threshold value:"), pos);
     thresholdTextField1 = new TextField("");
     thresholdTextField1.addKeyListener(this);
-    pos = new GridBagConstraints(1, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
-    this.add(thresholdTextField1, pos);
     pos = new GridBagConstraints(2, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    this.add(thresholdTextField1, pos);
+    pos = new GridBagConstraints(3, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Threshold value:"), pos);
     thresholdTextField2 = new TextField("");
     thresholdTextField2.addKeyListener(this);
-    pos = new GridBagConstraints(3, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    pos = new GridBagConstraints(5, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(thresholdTextField2, pos);
     //fill holes
     fillHolesCheckbox1 = new Checkbox("Fill holes", true);
     pos = new GridBagConstraints(0, 5, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(fillHolesCheckbox1, pos);
     fillHolesCheckbox2 = new Checkbox("Fill holes", false);
-    pos = new GridBagConstraints(2, 5, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    pos = new GridBagConstraints(3, 5, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(fillHolesCheckbox2, pos);
     //border touching
     borderCheckbox1 = new Checkbox("Discard border-touching regions", true);
     pos = new GridBagConstraints(0, 6, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(borderCheckbox1, pos);
     borderCheckbox2 = new Checkbox("Discard border-touching regions", false);
-    pos = new GridBagConstraints(2, 6, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    pos = new GridBagConstraints(3, 6, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(borderCheckbox2, pos);
     //area threshold
     pos = new GridBagConstraints(0, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Min area [px]:"), pos);
-    areaThresholdTextField1 = new TextField("5000");
+    areaThresholdTextField1 = new TextField("10000");
     areaThresholdTextField1.addKeyListener(this);
-    pos = new GridBagConstraints(1, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
-    this.add(areaThresholdTextField1, pos);
     pos = new GridBagConstraints(2, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
-    this.add(new Label("Min area [px]:"), pos);
-    areaThresholdTextField2 = new TextField("150");
-    areaThresholdTextField2.addKeyListener(this);
+    this.add(areaThresholdTextField1, pos);
     pos = new GridBagConstraints(3, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    this.add(new Label("Min area [px]:"), pos);
+    areaThresholdTextField2 = new TextField("300");
+    areaThresholdTextField2.addKeyListener(this);
+    pos = new GridBagConstraints(5, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(areaThresholdTextField2, pos);
     //maximum projection
     maximumProjectionCheckbox1 = new Checkbox("Use maximum projection", true);
@@ -154,12 +169,18 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     this.add(maximumProjectionCheckbox1, pos);
     //preview image
     group = new CheckboxGroup();
+    Panel chbPanel = new Panel();
+    chbPanel.setLayout(new BoxLayout(chbPanel, BoxLayout.LINE_AXIS));
     preview1 = new Checkbox("Use ch1 for preview", group, false);
     preview2 = new Checkbox("Use ch2 for preview", group, true);
-    pos = new GridBagConstraints(0, 9, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
-    this.add(preview1, pos);
-    pos = new GridBagConstraints(2, 9, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
-    this.add(preview2, pos);
+    preview3 = new Checkbox("Overlay", group, false);
+    chbPanel.add(preview1);
+    chbPanel.add(Box.createHorizontalGlue());
+    chbPanel.add(preview2);
+    chbPanel.add(Box.createHorizontalGlue());
+    chbPanel.add(preview3);
+    pos = new GridBagConstraints(0, 9, 6, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
+    this.add(chbPanel, pos);
     //threshold selection method
     pos = new GridBagConstraints(0, 10, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Threshold selection method:"), pos);
@@ -175,27 +196,28 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     //---button---
     runButton = new Button("Run");
     runButton.addActionListener(this);
-    pos = new GridBagConstraints(3, 11, 1, 1, 0, 0, LINE_END, NONE, insets, 0, 0);
+    pos = new GridBagConstraints(5, 11, 1, 1, 0, 0, LINE_END, NONE, insets, 0, 0);
     this.add(runButton, pos);
 
+    //correlation coefficient table
     textOutput = new TextPanel("correlation coefficient");
     textOutput.setColumnHeadings("Cell #\tPearson'scorrelation coefficient");
     Dimension dim = textOutput.getMinimumSize();
     dim.height = 150;
-    textOutput.setMinimumSize(dim);
     textOutput.setPreferredSize(dim);
-    pos = new GridBagConstraints(0, 12, 4, 4, 0, 1, CENTER, BOTH, insets, 0, 0);
+    pos = new GridBagConstraints(0, 12, 6, 4, 0, 1, CENTER, BOTH, insets, 0, 0);
     this.add(textOutput, pos);
 
     addKeyListener(this);
-
     pack();
     GUI.center(this);
     this.setVisible(true);
   }
 
+  /**
+   * Returns Image selected as first channel, null if no channel is selected
+   */
   private ImagePlus getFirstImage() {
-
     String selected = image1Choice.getSelectedItem();
     if (selected != null) {
       int id = Integer.parseInt(selected.substring(0, selected.indexOf(' ')));
@@ -207,6 +229,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     return null;
   }
 
+  /**
+   * Returns Image selected as second channel, null if no channel is selected
+   */
   private ImagePlus getSecondImage() {
     String selected = image2Choice.getSelectedItem();
     if (selected != null) {
@@ -251,7 +276,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   public void imageUpdated(ImagePlus imp) {
   }
 
-  //threshold method changed
+  //threshold method or input data changed
   public void itemStateChanged(ItemEvent e) {
     if (getFirstImage() != null) {
       thresholdTextField1.setText("" + Process.getOptimumStackThreshold(getFirstImage(), thresholdMethodChoice.getSelectedItem()));
@@ -324,7 +349,13 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         p.minArea2 = Integer.parseInt(areaThresholdTextField2.getText());
       }
       p.useMaximumProjection1 = maximumProjectionCheckbox1.getState();
-      p.preview1 = preview1.getState();
+      if (preview1.getState()) {
+        p.preview = 1;
+      } else if (preview2.getState()) {
+        p.preview = 2;
+      } else {
+        p.preview = 3;
+      }
       p.border1 = borderCheckbox1.getState();
       p.border2 = borderCheckbox2.getState();
       return p;
@@ -355,27 +386,35 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         ImagePlus mask1;
         ImagePlus mask2;
         //preview image        
-        ImagePlus imageToShow;
-        if (params.preview1) {
-          imageToShow = Process.convertStackToRGB(getFirstImage());
-        } else {
-          imageToShow = Process.convertStackToRGB(getSecondImage());
+        ImagePlus imageToShow = null;
+        switch (params.preview) {
+          case 1:
+            imageToShow = Process.convertStackToRGB(getFirstImage());
+            break;
+          case 2:
+            imageToShow = Process.convertStackToRGB(getSecondImage());
+            break;
+          case 3:
+            imageToShow = Process.convertToRGBOverlay(getFirstImage(), getSecondImage());
+            break;
         }
-        IJ.showStatus("segmentation channel 1");
         //create segmentation masks
-        if (params.useMaximumProjection1) {
-          mask1 = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
-        } else {
+        IJ.showStatus("segmentation channel 1");
+        ImagePlus maskMax = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
+        Process.filterRegions(maskMax, params.minArea1, params.border1);
+        if (!params.useMaximumProjection1) {
           mask1 = Process.segmentStack(getFirstImage(), params.sigma1, params.threshold1, params.fillHoles1);
+          Process.filterRegions(mask1, params.minArea1, params.border1);
+        } else {
+          mask1 = maskMax;
         }
-        Process.filterRegions(mask1, params.minArea1, params.border1);
         IJ.showStatus("segmentation channel 2");
         mask2 = Process.segmentStack(getSecondImage(), params.sigma2, params.threshold2, params.fillHoles2);
         Process.filterRegions(mask2, params.minArea2, params.border2);
 
         //split cells
         IJ.showStatus("splitting cell regions");
-        ImagePlus[] cellMasks = Process.splitCellRegions(mask1);
+        ImagePlus[] cellMasks = Process.splitCellRegions(maskMax);
 
         textOutput.clear();
         //scattergram stack and correlation calculation
@@ -383,30 +422,40 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         //cells
         for (int i = 0; i < cellMasks.length; i++) {
           IJ.showStatus("processing cell " + (i + 1));
-          ImagePlus mask = mask2.duplicate();
-          Process.andMaskStack(mask, cellMasks[i]);
-          scatterStack.addSlice("Cell " + (i + 1), Process.scatterPlot(getFirstImage(), getSecondImage(), mask).getProcessor());
+          ImagePlus maskForProcessing;
+          if (params.useMaximumProjection1) {
+            maskForProcessing = mask2.duplicate();
+            Process.andMaskStack(maskForProcessing, cellMasks[i]);
+          } else {
+            maskForProcessing = mask2.duplicate();
+            Process.andMaskStack(maskForProcessing, mask1);
+            Process.andMaskStack(maskForProcessing, cellMasks[i]);
+          }
 
-          double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask);
-          textOutput.appendWithoutUpdate((i + 1) + "\t" + pcc);
+          scatterStack.addSlice("Cell " + (i + 1), Process.scatterPlot(getFirstImage(), getSecondImage(), maskForProcessing).getProcessor());
+
+          double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
+          textOutput.appendWithoutUpdate(String.format("%d\t%.4f", (i + 1), pcc));
         }
         //all cells
         Process.andMaskStack(mask2, mask1);
         scatterStack.addSlice("all cells", Process.scatterPlot(getFirstImage(), getSecondImage(), mask2).getProcessor());
         double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2);
-        textOutput.appendLine("all\t" + pcc);
+        textOutput.appendLine(String.format("all\t%.4f", pcc));
         //roi
-        if (getFirstImage().getRoi() != null) {
-          ImagePlus roiMask = new ImagePlus("",new ByteProcessor(getFirstImage().getWidth(), getFirstImage().getHeight()));
+        Roi roi = selectROI();
+        if (roi != null) {
+          ImagePlus roiMask = new ImagePlus("", new ByteProcessor(getFirstImage().getWidth(), getFirstImage().getHeight()));
           roiMask.getProcessor().setColor(255);
-          roiMask.getProcessor().fill(getFirstImage().getRoi());
+          roiMask.getProcessor().fill(roi);
           pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
-          textOutput.appendLine("roi\t" + pcc);
-          
+          textOutput.appendLine(String.format("ROI\t%.4f", pcc));
+
           scatterStack.addSlice("ROI", Process.scatterPlot(getFirstImage(), getSecondImage(), roiMask).getProcessor());
         }
-        
-        getScatterImage().setImage(new ImagePlus("Scattergram", scatterStack));
+
+
+        getScatterImage().setStack(scatterStack);
         getScatterImage().show();
         getScatterImage().updateAndDraw();
 
@@ -414,7 +463,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         IJ.showStatus("generating preview image");
         Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
         Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
-        getResultImage().setImage(imageToShow);
+        getResultImage().setStack(imageToShow.getStack());
         getResultImage().show();
         Process.drawCellNumbers(getResultImage(), cellMasks);
         getResultImage().updateAndDraw();
@@ -424,9 +473,35 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
       }
     } catch (Throwable t) {
-      t.printStackTrace();
-      IJ.showMessage(t.toString());
+      StringWriter s = new StringWriter();
+      t.printStackTrace(new PrintWriter(s));
+      IJ.log(s.toString());
     }
+  }
+
+  private Roi selectROI() {
+    ImagePlus first = getFirstImage();
+    ImagePlus second = getSecondImage();
+    ImagePlus result = getResultImage();
+    ImagePlus current = IJ.getImage();
+
+
+    Roi activeRoi;
+    if ((current == first || current == second || current == result) && current.getRoi() != null) {
+      activeRoi = current.getRoi();
+    } else if (result.getRoi() != null) {
+      activeRoi = result.getRoi();
+    } else if (first.getRoi() != null) {
+      activeRoi = first.getRoi();
+    } else if (second.getRoi() != null) {
+      activeRoi = second.getRoi();
+    } else {
+      activeRoi = null;
+    }
+    first.setRoi(activeRoi);
+    second.setRoi(activeRoi);
+    result.setRoi(activeRoi);
+    return activeRoi;
   }
 
   public class UIParams {
@@ -442,6 +517,6 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     boolean border1;
     boolean border2;
     boolean useMaximumProjection1;
-    boolean preview1;
+    int preview;
   }
 }
