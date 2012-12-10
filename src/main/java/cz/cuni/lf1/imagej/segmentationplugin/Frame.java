@@ -38,7 +38,7 @@ import javax.swing.BoxLayout;
 /**
  * User interface for segmentation plugin
  *
- * .*nov09_01_z\d+_ch00.
+ * .*nov09_01_z\d+_ch00.*
  *
  * @author Josef Borkovec
  */
@@ -69,6 +69,14 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   ImagePlus resultImage;
   ImagePlus scatterPlot;
   TextPanel textOutput;
+  UIParams oldParams = null;
+  ImagePlus[] cellMasks;
+  ImagePlus mask1;
+  ImagePlus maskMax;
+  ImagePlus mask2;
+  ImagePlus blured1max;
+  ImagePlus blured1;
+  ImagePlus blured2;
 
   public Frame() {
     super("Segmentation options");
@@ -274,6 +282,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
    * Run button action. Performs all the work.
    */
   public void actionPerformed(ActionEvent e) {
+//    java.util.Hashtable t = Menus.getCommands();
+//    IJ.showMessage(t.get("Image Sequence...").toString());
     try {
       //error checking
       if ("Run".equals(e.getActionCommand())) {
@@ -293,8 +303,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         }
 
         UIParams params = getUIParams();
-        ImagePlus mask1;
-        ImagePlus mask2;
+
         //preview image        
         ImagePlus imageToShow = null;
         switch (params.preview) {
@@ -311,23 +320,40 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
             throw new RuntimeException("Unknown preview image");
         }
         //create segmentation masks
-        IJ.showStatus("segmentation channel 1");
-        ImagePlus maskMax = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
-        Process.filterRegions(maskMax, params.minArea1, params.border1);
-        if (!params.useMaximumProjection1) {
-          mask1 = Process.segmentStack(getFirstImage(), params.sigma1, params.threshold1, params.fillHoles1);
-          Process.filterRegions(mask1, params.minArea1, params.border1);
-        } else {
-          mask1 = maskMax;
+        if (params.ch1changed(oldParams)) {
+          IJ.showStatus("segmentation channel 1");
+          if (params.sigma1changed(oldParams)) {
+            ImagePlus maxProjection = Process.maximumIntensityProjection(getFirstImage());
+            blured1max = Process.toFloat(maxProjection);
+            IJ.run(blured1max, "Gaussian Blur...", "sigma=" + params.sigma1 + " stack");
+          }
+
+          maskMax = Process.segmentStack(blured1max, params.sigma1, params.threshold1, params.fillHoles1);
+          Process.filterRegions(maskMax, params.minArea1, params.border1);
+          if (!params.useMaximumProjection1) {
+            if (params.sigma1changed(oldParams) || params.projectionChanged(oldParams)) {
+              blured1 = Process.toFloat(getFirstImage());
+              IJ.run(blured1, "Gaussian Blur...", "sigma=" + params.sigma1 + " stack");
+            }
+            mask1 = Process.segmentStack(blured1, params.sigma1, params.threshold1, params.fillHoles1);
+            Process.filterRegions(mask1, params.minArea1, params.border1);
+          } else {
+            mask1 = maskMax;
+          }
         }
-        IJ.showStatus("segmentation channel 2");
-        mask2 = Process.segmentStack(getSecondImage(), params.sigma2, params.threshold2, params.fillHoles2);
-        Process.filterRegions(mask2, params.minArea2, params.border2);
+        if (params.ch2changed(oldParams)) {
+          IJ.showStatus("segmentation channel 2");
+          if (params.sigma2changed(oldParams)) {
+            blured2 = Process.toFloat(getSecondImage());
+            IJ.run(blured2, "Gaussian Blur...", "sigma=" + params.sigma2 + " stack");
+          }
+          mask2 = Process.segmentStack(blured2, params.sigma2, params.threshold2, params.fillHoles2);
+          Process.filterRegions(mask2, params.minArea2, params.border2);
 
-        //split cells
-        IJ.showStatus("splitting cell regions");
-        ImagePlus[] cellMasks = Process.splitCellRegions(maskMax);
-
+          //split cells
+          IJ.showStatus("splitting cell regions");
+          cellMasks = Process.splitCellRegions(maskMax);
+        }
         textOutput.clear();
         //scattergram stack and correlation calculation
         ImageStack scatterStack = new ImageStack(256, 256);
@@ -383,6 +409,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         WindowManager.setTempCurrentImage(getScatterImage());
         LutLoader l = new LutLoader();
         l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
+        oldParams = params;
       }
     } catch (Throwable t) {
       StringWriter s = new StringWriter();
@@ -412,6 +439,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   }
 
   public void imageUpdated(ImagePlus imp) {
+//    if(imp == getFirstImage() || imp == getSecondImage()){
+//      ImageCache.getInstance().invalidate(imp);
+//    }
   }
 
   /**
@@ -483,6 +513,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   public UIParams getUIParams() {
     UIParams p = new UIParams();
     try {
+      p.channel1 = getFirstImage();
+      p.channel2 = getSecondImage();
       if ("".equals(sigma1TextField.getText())) {
         p.sigma1 = DEFAULT_SIGMA1;
         sigma1TextField.setText(DEFAULT_SIGMA1 + "");
@@ -551,6 +583,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
    */
   public class UIParams {
 
+    ImagePlus channel1;
+    ImagePlus channel2;
     double sigma1;
     double sigma2;
     int threshold1;
@@ -563,5 +597,42 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     boolean border2;
     boolean useMaximumProjection1;
     int preview;
+
+    public boolean ch1changed(UIParams old) {
+      if (!sigma1changed(old) && threshold1 == old.threshold1 && fillHoles1 == old.fillHoles1 && minArea1 == old.minArea1 && border1 == old.border1 && useMaximumProjection1 == old.useMaximumProjection1) {
+        return false;
+      }
+      return true;
+    }
+
+    public boolean ch2changed(UIParams old) {
+      if (!sigma2changed(old) && threshold2 == old.threshold2 && fillHoles2 == old.fillHoles2 && minArea2 == old.minArea2 && border2 == old.border2) {
+        return false;
+      }
+      return true;
+    }
+
+    public boolean sigma1changed(UIParams old) {
+      if (old != null && old.channel1 == channel1 && Math.abs(old.sigma1 - sigma1) < 1e-5) {
+        return false;
+      }
+      return true;
+
+    }
+
+    public boolean sigma2changed(UIParams old) {
+      if (old != null && old.channel2 == channel2 && Math.abs(old.sigma2 - sigma2) < 1e-5) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+
+    public boolean projectionChanged(UIParams old) {
+      if (old != null && useMaximumProjection1 == old.useMaximumProjection1) {
+        return false;
+      }
+      return true;
+    }
   }
 }

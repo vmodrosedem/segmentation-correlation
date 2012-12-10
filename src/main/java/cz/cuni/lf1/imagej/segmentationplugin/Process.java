@@ -7,7 +7,6 @@ import ij.gui.Overlay;
 import ij.gui.Roi;
 import ij.gui.TextRoi;
 import ij.plugin.ZProjector;
-import ij.plugin.filter.GaussianBlur;
 import ij.process.AutoThresholder;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -183,25 +182,10 @@ public class Process {
    * @return Mask image with non-zero values for identified regions
    */
   public static ImagePlus segmentStack(ImagePlus image, double sigma, int threshold, boolean fillHoles) {
-    boolean singleImage = image.getStackSize() == 1;
-    ImageStack resultStack = new ImageStack(image.getWidth(), image.getHeight(), image.getStackSize());
-
-
-    GaussianBlur gaussPlugin = new GaussianBlur();
-    for (int i = 1; i <= image.getStackSize(); i++) {
-      //blur, the gaussian blur plugin uses only floating point images
-      ImageProcessor ip;
-      if (image.getType() == ImagePlus.GRAY32) {
-        ip = (singleImage)
-                ? (image.getProcessor().duplicate())
-                : (image.getStack().getProcessor(i).duplicate());
-      } else {
-        ip = (singleImage)
-                ? (image.getProcessor().convertToFloat())
-                : (image.getStack().getProcessor(i).convertToFloat());
-      }
-      ip = ip.convertToByte(true);
-      gaussPlugin.blurGaussian(ip, sigma, sigma, 1e-5);
+    
+    ImageStack resultStack = new ImageStack(image.getWidth(), image.getHeight());
+    for (int i = 1; i <= image.getStackSize(); i++) {    
+      ImageProcessor ip = image.getStack().getProcessor(i).convertToByte(true);
       //threshold
       ip.threshold(threshold);
       //fill holes
@@ -209,8 +193,7 @@ public class Process {
         fill(ip, 255, 0);
       }
 
-      resultStack.setPixels(ip.getPixels(), i);
-      resultStack.setSliceLabel("" + i, i);
+      resultStack.addSlice("" + i, ip);
       IJ.showProgress(i, image.getStackSize());
     }
     return new ImagePlus("mask", resultStack);
@@ -534,5 +517,25 @@ public class Process {
 
     double threshold = img.getType() ==ImagePlus.GRAY16? ((centroid1 + centroid2) / (2*256)) :((centroid1 + centroid2) / 2);
     return (int) threshold;
+  }
+
+  public static ImagePlus toFloat(ImagePlus image) {
+    ImageStack stack = new ImageStack(image.getWidth(), image.getHeight());
+    
+    for (int i = 1; i <= image.getStackSize(); i++) {
+      //blur, the gaussian blur plugin uses only floating point images
+      ImageProcessor ip;
+      if (image.getType() == ImagePlus.GRAY32) {
+        ip = (image.getStackSize() == 1)
+                ? (image.getProcessor().duplicate())
+                : (image.getStack().getProcessor(i).duplicate());
+      } else {
+        ip = (image.getStackSize() == 1)
+                ? (image.getProcessor().convertToFloat())
+                : (image.getStack().getProcessor(i).convertToFloat());
+      }
+      stack.addSlice(i+"", ip);
+    }
+    return new ImagePlus("",stack);
   }
 }
