@@ -68,7 +68,7 @@ public class ConnectedComponentsLabeller {
       //label components
       ImageProcessor originalProcessor = isStack ? image.getStack().getProcessor(slice) : image.getProcessor();
       componentLabelling(originalProcessor, labelsProcessor);
-      //find which regions that are touching the border
+      //find which regions are touching the border
       Set<Integer> toDiscard = discardTouching ? findRegionsTouchingBorder(labelsProcessor) : null;
       //discard small and marked regions
       int[] hist = labelsProcessor.getHistogram();

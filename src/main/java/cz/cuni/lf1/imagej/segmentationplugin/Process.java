@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package cz.cuni.lf1.imagej.segmentationplugin;
 
 import ij.IJ;
@@ -22,12 +18,24 @@ import java.awt.Color;
 import java.awt.Point;
 
 /**
+ * Actual image processing methods for segmentation plugin.
  *
- * @author Matlab
+ * @author Josef Borkovec
  */
 public class Process {
 
-  public static ImagePlus scatterPlot(ImagePlus image1, ImagePlus image2, ImagePlus mask) {
+  /**
+   * Creates a scattergram of two grayscale images (or stacks) using a mask.
+   * Only pixels for which there is a nonzero value int the mask image are
+   * counted. Requires 8-bit or 16-bit grayscale values. For both 8-bit and
+   * 16-bit images 256 values histogram is used.
+   *
+   * @param image1 (horizontal axis)
+   * @param image2 (vertical axis)
+   * @param mask mask image of the same width and height as images 1 and 2
+   * @return 256*256 16-bit grayscale image with the scattergram.
+   */
+  public static ImagePlus scattergram(ImagePlus image1, ImagePlus image2, ImagePlus mask) {
     boolean singleImage = image1.getStackSize() == 1;
     boolean bit16 = (image1.getType() == ImagePlus.GRAY16);
 
@@ -68,9 +76,17 @@ public class Process {
       }
     }
 
-    return new ImagePlus("Scatter plot", plot);
+    return new ImagePlus("Scattergram", plot);
   }
 
+  /**
+   * Performs logical and on two mask images. The result overrides the first
+   * mask. If res is a stack, mask must have the same number of images or just
+   * one image.
+   *
+   * @param res
+   * @param mask
+   */
   public static void andMaskStack(ImagePlus res, ImagePlus mask) {
     if (res.getStackSize() != mask.getStackSize() && mask.getStackSize() != 1) {
       throw new RuntimeException("Mask stack size must match or be equal to 1");
@@ -90,27 +106,41 @@ public class Process {
     }
   }
 
+  /**
+   * converts two grayscale image to one colored overlay. Requires 8bit or 16bit
+   * grayscale images (or stacks).
+   *
+   * @param green image used for green channel
+   * @param red image user for red channel
+   * @return
+   */
   public static ImagePlus convertToRGBOverlay(ImagePlus green, ImagePlus red) {
     ImageStack newStack = new ImageStack(green.getWidth(), green.getHeight());
     for (int i = 1; i <= green.getStackSize(); i++) {
       ImageProcessor ip = new ColorProcessor(green.getWidth(), green.getHeight());
-      ImageProcessor gr = (green.getStackSize() == 1)?green.getProcessor():green.getStack().getProcessor(i);
-      ImageProcessor re = (green.getStackSize() == 1)?red.getProcessor():red.getStack().getProcessor(i);
-      for(int p = 0; p < ip.getPixelCount(); p++){
+      ImageProcessor gr = (green.getStackSize() == 1) ? green.getProcessor() : green.getStack().getProcessor(i);
+      ImageProcessor re = (green.getStackSize() == 1) ? red.getProcessor() : red.getStack().getProcessor(i);
+      for (int p = 0; p < ip.getPixelCount(); p++) {
         int greenPix = gr.get(p);
         int redPix = re.get(p);
-        if(green.getType() == ImagePlus.GRAY16){
-          greenPix = greenPix/256;
-          redPix = redPix/256;
+        if (green.getType() == ImagePlus.GRAY16) {
+          greenPix = greenPix / 256;
+          redPix = redPix / 256;
         }
-        ip.set(p, (redPix << 16) | (greenPix <<8));
+        ip.set(p, (redPix << 16) | (greenPix << 8));
       }
-      newStack.addSlice(i +"", ip);
-      
+      newStack.addSlice(i + "", ip);
+
     }
     return new ImagePlus("result", newStack);
   }
 
+  /**
+   * Simple conversion of every image in stack to RGB image.
+   *
+   * @param imp
+   * @return
+   */
   public static ImagePlus convertStackToRGB(ImagePlus imp) {
     if (imp.getStackSize() == 1) {
       return new ImagePlus("", imp.getProcessor().convertToRGB());
@@ -124,6 +154,13 @@ public class Process {
     }
   }
 
+  /**
+   * Does maximum intensity projection of an image stack using ImageJ's
+   * Zprojector
+   *
+   * @param imp
+   * @return
+   */
   public static ImagePlus maximumIntensityProjection(ImagePlus imp) {
     ZProjector zProjector = new ZProjector();
     zProjector.setImage(imp);
@@ -133,12 +170,26 @@ public class Process {
     return zProjector.getProjection();
   }
 
+  /**
+   * Performs segmentation on Image stack or single image. First the image is
+   * blurred by gaussian filter of standard deviation sigma. Than the image is
+   * thresholded by a specified threshold. if fillHoles is true than zero
+   * regions completely surrounded by nonzero regions are set to 255
+   *
+   * @param image image for segmentation
+   * @param sigma gaussian blur std
+   * @param threshold
+   * @param fillHoles
+   * @return Mask image with non-zero values for identified regions
+   */
   public static ImagePlus segmentStack(ImagePlus image, double sigma, int threshold, boolean fillHoles) {
     boolean singleImage = image.getStackSize() == 1;
     ImageStack resultStack = new ImageStack(image.getWidth(), image.getHeight(), image.getStackSize());
 
+
     GaussianBlur gaussPlugin = new GaussianBlur();
     for (int i = 1; i <= image.getStackSize(); i++) {
+      //blur, the gaussian blur plugin uses only floating point images
       ImageProcessor ip;
       if (image.getType() == ImagePlus.GRAY32) {
         ip = (singleImage)
@@ -151,7 +202,9 @@ public class Process {
       }
       ip = ip.convertToByte(true);
       gaussPlugin.blurGaussian(ip, sigma, sigma, 1e-5);
+      //threshold
       ip.threshold(threshold);
+      //fill holes
       if (fillHoles) {
         fill(ip, 255, 0);
       }
@@ -160,12 +213,20 @@ public class Process {
       resultStack.setSliceLabel("" + i, i);
       IJ.showProgress(i, image.getStackSize());
     }
-
     return new ImagePlus("mask", resultStack);
   }
 
-  // Binary fill by Gabriel Landini, G.Landini at bham.ac.uk
-  // 21/May/2008
+  /**
+   * Binary fill by Gabriel Landini, G.Landini at bham.ac.uk
+   *
+   * 21/May/2008
+   *
+   * copied from ImageJ source
+   *
+   * @param ip the images processor
+   * @param foreground grayscale value
+   * @param background grayscale value
+   */
   private static void fill(ImageProcessor ip, int foreground, int background) {
     int width = ip.getWidth();
     int height = ip.getHeight();
@@ -199,9 +260,18 @@ public class Process {
   }
 
   /**
-   * finds threshold value using specified method
+   * Finds threshold value from images histogram using specified method. Uses
+   * methods from ImageJ's AutoThresholder. For stacks the histogram is summed
+   * through all slices.
+   *
+   * @param image
+   * @param method
+   * @return
    */
   public static int getOptimumStackThreshold(ImagePlus image, String method) {
+    if("K-Means".equals(method)){
+      return KMeansThreshold(image);
+    }
     //compute histogram
     int[] histogramSum;
     if (image.getStackSize() == 1) {
@@ -228,6 +298,18 @@ public class Process {
 
   }
 
+  /**
+   * Draws outlines of the mask in a specified RGB images. The mask rewriten to
+   * the outline of the mask as a side effect. Bitwise or with the color value
+   * is performed with the pixels where there is non-zero value in the outline
+   * of the mask.
+   *
+   * @param image RGB image where the outline is written
+   * @param mask mask with non-zero values for the whole region (not only the
+   * outline), changed as a side effect
+   * @param color pixels are ored with this value, you can use 0xff0000 for red,
+   * 0x00ff00 for green and 0x0000ff for blue
+   */
   public static void drawOutlineStack(ImagePlus image, ImagePlus mask, int color) {
     if (image.getType() != ImagePlus.COLOR_RGB) {
       throw new RuntimeException("image must be of COLOR_RGB type");
@@ -269,22 +351,30 @@ public class Process {
     }
   }
 
-  public static void drawCellNumbers(ImagePlus rgbImage, ImagePlus[] cellMasks) {
-    Overlay o = new Overlay();
-    for (int i = 0; i < cellMasks.length; i++) {
-      Point p = computeCentroid(cellMasks[i].getProcessor());
-      Roi roi = new TextRoi(p.x, p.y, i + 1 + "");
-      roi.setStrokeColor(Color.green);
-      o.add(roi);
-    }
-    rgbImage.setOverlay(o);
-  }
-
+  /**
+   * Does connected components labelling and discards regions that are smaller
+   * than a certain number of pixels. If discardBorderRegions is true, regions
+   * that touch the border are discarded. Works on stack or single image.
+   *
+   * @param image binary mask image
+   * @param pixels minimum area of regions in pixels
+   * @param discardBorderRegions
+   */
   public static void filterRegions(ImagePlus image, int pixels, boolean discardBorderRegions) {
     ConnectedComponentsLabeller labeller = new ConnectedComponentsLabeller();
     labeller.filterRegions(image, pixels, discardBorderRegions);
   }
 
+  /**
+   * Computes correlation coefficient of the intensities in two images (channel1
+   * and channel2). Only uses pixels where the mask is non-zero. Works
+   * throughout all images in the stack.
+   *
+   * @param channel1
+   * @param channel2
+   * @param mask
+   * @return correlation coefficient
+   */
   public static double computeCorrelation(ImagePlus channel1, ImagePlus channel2, ImagePlus mask) {
     //first pass, compute means
     double ch1Sum = 0;
@@ -328,6 +418,13 @@ public class Process {
 
   }
 
+  /**
+   * Using connected components labelling. Splits separated regions and returns
+   * a mask image for eachseparated region.
+   *
+   * @param mask with multiple separate regions
+   * @return array of masks for each region
+   */
   public static ImagePlus[] splitCellRegions(ImagePlus mask) {
     ConnectedComponentsLabeller l = new ConnectedComponentsLabeller();
     return l.splitCellRegions(mask);
@@ -343,6 +440,31 @@ public class Process {
     }
   }
 
+  /**
+   * Draws cell number in the centroid of each cell region. The text is drawn in
+   * the overlay, not the pixel values.
+   *
+   * @param rgbImage
+   * @param cellMasks an array of masks with non-zero values where the cell
+   * region is
+   */
+  public static void drawCellNumbers(ImagePlus rgbImage, ImagePlus[] cellMasks) {
+    Overlay o = new Overlay();
+    for (int i = 0; i < cellMasks.length; i++) {
+      Point p = computeCentroid(cellMasks[i].getProcessor());
+      Roi roi = new TextRoi(p.x, p.y, i + 1 + "");
+      roi.setStrokeColor(Color.green);
+      o.add(roi);
+    }
+    rgbImage.setOverlay(o);
+  }
+
+  /**
+   * Computes the centroid of the non-zero values in image ip.
+   *
+   * @param ip mask image
+   * @return Point object with the centroid values
+   */
   public static Point computeCentroid(ImageProcessor ip) {
     int x = 0;
     int y = 0;
@@ -361,5 +483,56 @@ public class Process {
     x = x / area;
     y = y / area;
     return new Point(x, y);
+  }
+
+  public static int KMeansThreshold(ImagePlus img) {
+    double centroid1 = img.getProcessor().get(0);
+    double centroid2 = 2*img.getProcessor().get(0);
+
+    double change;
+    int iteration = 0;
+    do {
+
+      long centroid1sum = 0;
+      long centroid2sum = 0;
+      int centroid1count = 0;
+      int centroid2count = 0;
+      for (int i = 1; i <= img.getStackSize(); i++) {
+        ImageProcessor ip = (img.getStackSize() == 1) ? img.getProcessor() : img.getStack().getProcessor(i);
+        for (int p = 0; p < ip.getPixelCount(); p++) {
+          int value = ip.get(p);
+
+          if (Math.abs(value - centroid1) < Math.abs(value - centroid2)) {
+            centroid1sum += value;
+            centroid1count++;
+          } else {
+            centroid2sum += value;
+            centroid2count++;
+          }
+        }
+      }
+
+      double newCentroid1 = centroid1sum / (double) centroid1count;
+      double newCentroid2 = centroid2sum / (double) centroid2count;
+
+      double c1change = 0;
+      if(centroid1count != 0) {
+        c1change = Math.abs(centroid1-newCentroid1);
+        centroid1 = newCentroid1;
+      }
+      double c2change = 0;
+      if(centroid2count != 0){
+        c2change = Math.abs(centroid2-newCentroid2);
+        centroid2 = newCentroid2;
+      }
+      change = Math.max(c1change, c2change);
+      iteration++;
+      if(iteration >100) {
+        IJ.log("Warning: K-means didn't converge after 50 iterations.");
+      }
+    } while (change > 0.5 );
+
+    double threshold = img.getType() ==ImagePlus.GRAY16? ((centroid1 + centroid2) / (2*256)) :((centroid1 + centroid2) / 2);
+    return (int) threshold;
   }
 }

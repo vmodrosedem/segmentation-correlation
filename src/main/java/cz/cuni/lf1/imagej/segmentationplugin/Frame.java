@@ -1,8 +1,3 @@
-/*
- * .*nov09_01_z\d+_ch00.*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package cz.cuni.lf1.imagej.segmentationplugin;
 
 import static java.awt.GridBagConstraints.*;
@@ -43,7 +38,9 @@ import javax.swing.BoxLayout;
 /**
  * User interface for segmentation plugin
  *
- * @author Matlab
+ * .*nov09_01_z\d+_ch00.
+ *
+ * @author Josef Borkovec
  */
 public class Frame extends PlugInFrame implements ImageListener, ActionListener, ItemListener, KeyListener {
 
@@ -77,7 +74,6 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     super("Segmentation options");
     this.setLayout(new GridBagLayout());
 
-
     //data input
     Insets insets = new Insets(5, 5, 1, 1);
     GridBagConstraints pos = new GridBagConstraints(0, 0, 3, 1, 0, 0, CENTER, NONE, insets, 0, 0);
@@ -101,7 +97,6 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     size.width = 100;
     image1Choice.setPreferredSize(size);
     image2Choice.setPreferredSize(size);
-
     int count = WindowManager.getImageCount();
     for (int i = 1; i <= count; i++) {
       ImagePlus ip = WindowManager.getImage(WindowManager.getNthImageID(i));
@@ -123,6 +118,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     sigma2TextField.addKeyListener(this);
     pos = new GridBagConstraints(5, 3, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(sigma2TextField, pos);
+
     //threshold
     pos = new GridBagConstraints(0, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Threshold value:"), pos);
@@ -136,6 +132,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     thresholdTextField2.addKeyListener(this);
     pos = new GridBagConstraints(5, 4, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(thresholdTextField2, pos);
+
     //fill holes
     fillHolesCheckbox1 = new Checkbox("Fill holes", true);
     pos = new GridBagConstraints(0, 5, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
@@ -143,6 +140,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     fillHolesCheckbox2 = new Checkbox("Fill holes", false);
     pos = new GridBagConstraints(3, 5, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(fillHolesCheckbox2, pos);
+
     //border touching
     borderCheckbox1 = new Checkbox("Discard border-touching regions", true);
     pos = new GridBagConstraints(0, 6, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
@@ -150,6 +148,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     borderCheckbox2 = new Checkbox("Discard border-touching regions", false);
     pos = new GridBagConstraints(3, 6, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(borderCheckbox2, pos);
+
     //area threshold
     pos = new GridBagConstraints(0, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Min area [px]:"), pos);
@@ -163,10 +162,12 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     areaThresholdTextField2.addKeyListener(this);
     pos = new GridBagConstraints(5, 7, 1, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(areaThresholdTextField2, pos);
+
     //maximum projection
     maximumProjectionCheckbox1 = new Checkbox("Use maximum projection", true);
     pos = new GridBagConstraints(0, 8, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(maximumProjectionCheckbox1, pos);
+
     //preview image
     group = new CheckboxGroup();
     Panel chbPanel = new Panel();
@@ -181,6 +182,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     chbPanel.add(preview3);
     pos = new GridBagConstraints(0, 9, 6, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(chbPanel, pos);
+
     //threshold selection method
     pos = new GridBagConstraints(0, 10, 2, 1, 0, 0, LINE_START, HORIZONTAL, insets, 0, 0);
     this.add(new Label("Threshold selection method:"), pos);
@@ -191,9 +193,11 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     for (int i = 0; i < methods.length; i++) {
       thresholdMethodChoice.add(methods[i]);
     }
+    thresholdMethodChoice.add("K-Means");
     thresholdMethodChoice.select(DEFAULT_METHOD);
     thresholdMethodChoice.addItemListener(this);
-    //---button---
+
+    //button
     runButton = new Button("Run");
     runButton.addActionListener(this);
     pos = new GridBagConstraints(5, 11, 1, 1, 0, 0, LINE_END, NONE, insets, 0, 0);
@@ -230,7 +234,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   }
 
   /**
-   * Returns Image selected as second channel, null if no channel is selected
+   * Returns image selected as second channel, null if no channel is selected
    */
   private ImagePlus getSecondImage() {
     String selected = image2Choice.getSelectedItem();
@@ -244,6 +248,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     return null;
   }
 
+  /**
+   * Returns image used as preview, creates an empty one if there isnt any.
+   */
   private ImagePlus getResultImage() {
     if (resultImage == null) {
       resultImage = new ImagePlus();
@@ -252,31 +259,164 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     return resultImage;
   }
 
+  /**
+   * Returns image used as scattergram, creates an empty one if there isnt any.
+   */
   private ImagePlus getScatterImage() {
     if (scatterPlot == null) {
       scatterPlot = new ImagePlus();
-      scatterPlot.setTitle("Scatter plot");
+      scatterPlot.setTitle("Scattergram");
     }
     return scatterPlot;
   }
 
+  /**
+   * Run button action. Performs all the work.
+   */
+  public void actionPerformed(ActionEvent e) {
+    try {
+      //error checking
+      if ("Run".equals(e.getActionCommand())) {
+        if (getFirstImage() == null && getSecondImage() == null) {
+          return;
+        }
+        if ((getFirstImage().getType() != ImagePlus.GRAY8 && getFirstImage().getType() != ImagePlus.GRAY16)
+                || (getSecondImage().getType() != ImagePlus.GRAY8 && getSecondImage().getType() != ImagePlus.GRAY16)) {
+          IJ.error("Requires 8bit or 16bit grayscale images.");
+          return;
+        }
+        if (getFirstImage().getWidth() != getSecondImage().getWidth()
+                || getFirstImage().getHeight() != getSecondImage().getHeight()
+                || getFirstImage().getStackSize() != getSecondImage().getStackSize()) {
+          IJ.error("Both images must have the same dimensions.");
+          return;
+        }
+
+        UIParams params = getUIParams();
+        ImagePlus mask1;
+        ImagePlus mask2;
+        //preview image        
+        ImagePlus imageToShow = null;
+        switch (params.preview) {
+          case 1:
+            imageToShow = Process.convertStackToRGB(getFirstImage());
+            break;
+          case 2:
+            imageToShow = Process.convertStackToRGB(getSecondImage());
+            break;
+          case 3:
+            imageToShow = Process.convertToRGBOverlay(getFirstImage(), getSecondImage());
+            break;
+          default:
+            throw new RuntimeException("Unknown preview image");
+        }
+        //create segmentation masks
+        IJ.showStatus("segmentation channel 1");
+        ImagePlus maskMax = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
+        Process.filterRegions(maskMax, params.minArea1, params.border1);
+        if (!params.useMaximumProjection1) {
+          mask1 = Process.segmentStack(getFirstImage(), params.sigma1, params.threshold1, params.fillHoles1);
+          Process.filterRegions(mask1, params.minArea1, params.border1);
+        } else {
+          mask1 = maskMax;
+        }
+        IJ.showStatus("segmentation channel 2");
+        mask2 = Process.segmentStack(getSecondImage(), params.sigma2, params.threshold2, params.fillHoles2);
+        Process.filterRegions(mask2, params.minArea2, params.border2);
+
+        //split cells
+        IJ.showStatus("splitting cell regions");
+        ImagePlus[] cellMasks = Process.splitCellRegions(maskMax);
+
+        textOutput.clear();
+        //scattergram stack and correlation calculation
+        ImageStack scatterStack = new ImageStack(256, 256);
+        //single cells
+        for (int i = 0; i < cellMasks.length; i++) {
+          IJ.showStatus("processing cell " + (i + 1));
+          ImagePlus maskForProcessing;
+          if (params.useMaximumProjection1) {
+            maskForProcessing = mask2.duplicate();
+            Process.andMaskStack(maskForProcessing, cellMasks[i]);
+          } else {
+            maskForProcessing = mask2.duplicate();
+            Process.andMaskStack(maskForProcessing, mask1);
+            Process.andMaskStack(maskForProcessing, cellMasks[i]);
+          }
+
+          scatterStack.addSlice("Cell " + (i + 1), Process.scattergram(getFirstImage(), getSecondImage(), maskForProcessing).getProcessor());
+          double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
+          textOutput.appendWithoutUpdate(String.format("%d\t%.4f", (i + 1), pcc));
+        }
+        //all cells
+        Process.andMaskStack(mask2, mask1);
+        scatterStack.addSlice("all cells", Process.scattergram(getFirstImage(), getSecondImage(), mask2).getProcessor());
+        double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2);
+        textOutput.appendLine(String.format("all\t%.4f", pcc));
+        //roi
+        Roi roi = selectROI();
+        if (roi != null) {
+          ImagePlus roiMask = new ImagePlus("", new ByteProcessor(getFirstImage().getWidth(), getFirstImage().getHeight()));
+          roiMask.getProcessor().setColor(255);
+          roiMask.getProcessor().fill(roi);
+          pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
+          textOutput.appendLine(String.format("ROI\t%.4f", pcc));
+
+          scatterStack.addSlice("ROI", Process.scattergram(getFirstImage(), getSecondImage(), roiMask).getProcessor());
+        }
+
+        //show scattergram image
+        getScatterImage().setStack(scatterStack);
+        getScatterImage().show();
+        getScatterImage().updateAndDraw();
+
+        //show preview
+        IJ.showStatus("generating preview image");
+        Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
+        Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
+        getResultImage().setStack(imageToShow.getStack());
+        getResultImage().show();
+        Process.drawCellNumbers(getResultImage(), cellMasks);
+        getResultImage().updateAndDraw();
+
+        //change lookup table of scattergram to red hot
+        WindowManager.setTempCurrentImage(getScatterImage());
+        LutLoader l = new LutLoader();
+        l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
+      }
+    } catch (Throwable t) {
+      StringWriter s = new StringWriter();
+      t.printStackTrace(new PrintWriter(s));
+      IJ.log(s.toString());
+    }
+  }
+
+  /**
+   * New image opened in ImageJ. Add it to input data selection Choice.
+   */
   public void imageOpened(ImagePlus imp) {
     image1Choice.add(imp.getID() + " " + imp.getTitle());
     image2Choice.add(imp.getID() + " " + imp.getTitle());
   }
 
+  /**
+   * ImageJ image closed remove it from input data selection Choice, if it was
+   * there.
+   */
   public void imageClosed(ImagePlus imp) {
     try {
       image1Choice.remove(imp.getID() + " " + imp.getTitle());
       image2Choice.remove(imp.getID() + " " + imp.getTitle());
-    } catch (IllegalArgumentException ex) {
+    } catch (IllegalArgumentException ex) {//
     }
   }
 
   public void imageUpdated(ImagePlus imp) {
   }
 
-  //threshold method or input data changed
+  /**
+   * Threshold method or input data changed. Recalculate thresholds.
+   */
   public void itemStateChanged(ItemEvent e) {
     if (getFirstImage() != null) {
       thresholdTextField1.setText("" + Process.getOptimumStackThreshold(getFirstImage(), thresholdMethodChoice.getSelectedItem()));
@@ -289,6 +429,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   public void keyTyped(KeyEvent e) {
   }
 
+  /**
+   * KeyListener. Fires the run button on enter key.
+   */
   public void keyPressed(KeyEvent e) {
     if (e.getKeyCode() == KeyEvent.VK_ENTER) {
       runButton.dispatchEvent(new ActionEvent(runButton, ActionEvent.ACTION_PERFORMED, runButton.getActionCommand()));
@@ -298,6 +441,45 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   public void keyReleased(KeyEvent e) {
   }
 
+  /**
+   * Selects ROI from one of the three relevant images: first channel, second
+   * channel, or preview image. Also sets the same selected ROI in all the
+   * relevant images. The priority is as follows: current image > result image >
+   * first channel > second channel. Current channel is used only if its one of
+   * the relevant images.
+   *
+   * @return the ROI
+   */
+  private Roi selectROI() {
+    ImagePlus first = getFirstImage();
+    ImagePlus second = getSecondImage();
+    ImagePlus result = getResultImage();
+    ImagePlus current = IJ.getImage();
+
+    Roi activeRoi;
+    if ((current == first || current == second || current == result) && current.getRoi() != null) {
+      activeRoi = current.getRoi();
+    } else if (result.getRoi() != null) {
+      activeRoi = result.getRoi();
+    } else if (first.getRoi() != null) {
+      activeRoi = first.getRoi();
+    } else if (second.getRoi() != null) {
+      activeRoi = second.getRoi();
+    } else {
+      activeRoi = null;
+    }
+    //set the same roi in all images
+    first.setRoi(activeRoi);
+    second.setRoi(activeRoi);
+    result.setRoi(activeRoi);
+    return activeRoi;
+  }
+
+  /**
+   * Extract parameters from user Interface
+   *
+   * @return uiparams
+   */
   public UIParams getUIParams() {
     UIParams p = new UIParams();
     try {
@@ -364,146 +546,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     }
   }
 
-  public void actionPerformed(ActionEvent e) {
-    try {
-      if ("Run".equals(e.getActionCommand())) {
-        if (getFirstImage() == null && getSecondImage() == null) {
-          return;
-        }
-        if ((getFirstImage().getType() != ImagePlus.GRAY8 && getFirstImage().getType() != ImagePlus.GRAY16)
-                || (getSecondImage().getType() != ImagePlus.GRAY8 && getSecondImage().getType() != ImagePlus.GRAY16)) {
-          IJ.error("Requires 8bit or 16bit grayscale images.");
-          return;
-        }
-        if (getFirstImage().getWidth() != getSecondImage().getWidth()
-                || getFirstImage().getHeight() != getSecondImage().getHeight()
-                || getFirstImage().getStackSize() != getSecondImage().getStackSize()) {
-          IJ.error("Both images must have the same dimensions.");
-          return;
-        }
-
-        UIParams params = getUIParams();
-        ImagePlus mask1;
-        ImagePlus mask2;
-        //preview image        
-        ImagePlus imageToShow = null;
-        switch (params.preview) {
-          case 1:
-            imageToShow = Process.convertStackToRGB(getFirstImage());
-            break;
-          case 2:
-            imageToShow = Process.convertStackToRGB(getSecondImage());
-            break;
-          case 3:
-            imageToShow = Process.convertToRGBOverlay(getFirstImage(), getSecondImage());
-            break;
-        }
-        //create segmentation masks
-        IJ.showStatus("segmentation channel 1");
-        ImagePlus maskMax = Process.segmentStack(Process.maximumIntensityProjection(getFirstImage()), params.sigma1, params.threshold1, params.fillHoles1);
-        Process.filterRegions(maskMax, params.minArea1, params.border1);
-        if (!params.useMaximumProjection1) {
-          mask1 = Process.segmentStack(getFirstImage(), params.sigma1, params.threshold1, params.fillHoles1);
-          Process.filterRegions(mask1, params.minArea1, params.border1);
-        } else {
-          mask1 = maskMax;
-        }
-        IJ.showStatus("segmentation channel 2");
-        mask2 = Process.segmentStack(getSecondImage(), params.sigma2, params.threshold2, params.fillHoles2);
-        Process.filterRegions(mask2, params.minArea2, params.border2);
-
-        //split cells
-        IJ.showStatus("splitting cell regions");
-        ImagePlus[] cellMasks = Process.splitCellRegions(maskMax);
-
-        textOutput.clear();
-        //scattergram stack and correlation calculation
-        ImageStack scatterStack = new ImageStack(256, 256);
-        //cells
-        for (int i = 0; i < cellMasks.length; i++) {
-          IJ.showStatus("processing cell " + (i + 1));
-          ImagePlus maskForProcessing;
-          if (params.useMaximumProjection1) {
-            maskForProcessing = mask2.duplicate();
-            Process.andMaskStack(maskForProcessing, cellMasks[i]);
-          } else {
-            maskForProcessing = mask2.duplicate();
-            Process.andMaskStack(maskForProcessing, mask1);
-            Process.andMaskStack(maskForProcessing, cellMasks[i]);
-          }
-
-          scatterStack.addSlice("Cell " + (i + 1), Process.scatterPlot(getFirstImage(), getSecondImage(), maskForProcessing).getProcessor());
-
-          double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
-          textOutput.appendWithoutUpdate(String.format("%d\t%.4f", (i + 1), pcc));
-        }
-        //all cells
-        Process.andMaskStack(mask2, mask1);
-        scatterStack.addSlice("all cells", Process.scatterPlot(getFirstImage(), getSecondImage(), mask2).getProcessor());
-        double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2);
-        textOutput.appendLine(String.format("all\t%.4f", pcc));
-        //roi
-        Roi roi = selectROI();
-        if (roi != null) {
-          ImagePlus roiMask = new ImagePlus("", new ByteProcessor(getFirstImage().getWidth(), getFirstImage().getHeight()));
-          roiMask.getProcessor().setColor(255);
-          roiMask.getProcessor().fill(roi);
-          pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
-          textOutput.appendLine(String.format("ROI\t%.4f", pcc));
-
-          scatterStack.addSlice("ROI", Process.scatterPlot(getFirstImage(), getSecondImage(), roiMask).getProcessor());
-        }
-
-
-        getScatterImage().setStack(scatterStack);
-        getScatterImage().show();
-        getScatterImage().updateAndDraw();
-
-        //show preview
-        IJ.showStatus("generating preview image");
-        Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
-        Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
-        getResultImage().setStack(imageToShow.getStack());
-        getResultImage().show();
-        Process.drawCellNumbers(getResultImage(), cellMasks);
-        getResultImage().updateAndDraw();
-
-        WindowManager.setTempCurrentImage(getScatterImage());
-        LutLoader l = new LutLoader();
-        l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
-      }
-    } catch (Throwable t) {
-      StringWriter s = new StringWriter();
-      t.printStackTrace(new PrintWriter(s));
-      IJ.log(s.toString());
-    }
-  }
-
-  private Roi selectROI() {
-    ImagePlus first = getFirstImage();
-    ImagePlus second = getSecondImage();
-    ImagePlus result = getResultImage();
-    ImagePlus current = IJ.getImage();
-
-
-    Roi activeRoi;
-    if ((current == first || current == second || current == result) && current.getRoi() != null) {
-      activeRoi = current.getRoi();
-    } else if (result.getRoi() != null) {
-      activeRoi = result.getRoi();
-    } else if (first.getRoi() != null) {
-      activeRoi = first.getRoi();
-    } else if (second.getRoi() != null) {
-      activeRoi = second.getRoi();
-    } else {
-      activeRoi = null;
-    }
-    first.setRoi(activeRoi);
-    second.setRoi(activeRoi);
-    result.setRoi(activeRoi);
-    return activeRoi;
-  }
-
+  /**
+   * class for holding parameters selected in user interface
+   */
   public class UIParams {
 
     double sigma1;
