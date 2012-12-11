@@ -15,6 +15,9 @@ import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import java.awt.Color;
 import java.awt.Point;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 
 /**
  * Actual image processing methods for segmentation plugin.
@@ -182,9 +185,9 @@ public class Process {
    * @return Mask image with non-zero values for identified regions
    */
   public static ImagePlus segmentStack(ImagePlus image, double sigma, int threshold, boolean fillHoles) {
-    
+
     ImageStack resultStack = new ImageStack(image.getWidth(), image.getHeight());
-    for (int i = 1; i <= image.getStackSize(); i++) {    
+    for (int i = 1; i <= image.getStackSize(); i++) {
       ImageProcessor ip = image.getStack().getProcessor(i).convertToByte(true);
       //threshold
       ip.threshold(threshold);
@@ -252,7 +255,7 @@ public class Process {
    * @return
    */
   public static int getOptimumStackThreshold(ImagePlus image, String method) {
-    if("K-Means".equals(method)){
+    if ("K-Means".equals(method)) {
       return KMeansThreshold(image);
     }
     //compute histogram
@@ -470,7 +473,7 @@ public class Process {
 
   public static int KMeansThreshold(ImagePlus img) {
     double centroid1 = img.getProcessor().get(0);
-    double centroid2 = 2*img.getProcessor().get(0);
+    double centroid2 = 2 * img.getProcessor().get(0);
 
     double change;
     int iteration = 0;
@@ -499,29 +502,29 @@ public class Process {
       double newCentroid2 = centroid2sum / (double) centroid2count;
 
       double c1change = 0;
-      if(centroid1count != 0) {
-        c1change = Math.abs(centroid1-newCentroid1);
+      if (centroid1count != 0) {
+        c1change = Math.abs(centroid1 - newCentroid1);
         centroid1 = newCentroid1;
       }
       double c2change = 0;
-      if(centroid2count != 0){
-        c2change = Math.abs(centroid2-newCentroid2);
+      if (centroid2count != 0) {
+        c2change = Math.abs(centroid2 - newCentroid2);
         centroid2 = newCentroid2;
       }
       change = Math.max(c1change, c2change);
       iteration++;
-      if(iteration >100) {
+      if (iteration > 100) {
         IJ.log("Warning: K-means didn't converge after 50 iterations.");
       }
-    } while (change > 0.5 );
+    } while (change > 0.5);
 
-    double threshold = img.getType() ==ImagePlus.GRAY16? ((centroid1 + centroid2) / (2*256)) :((centroid1 + centroid2) / 2);
+    double threshold = img.getType() == ImagePlus.GRAY16 ? ((centroid1 + centroid2) / (2 * 256)) : ((centroid1 + centroid2) / 2);
     return (int) threshold;
   }
 
   public static ImagePlus toFloat(ImagePlus image) {
     ImageStack stack = new ImageStack(image.getWidth(), image.getHeight());
-    
+
     for (int i = 1; i <= image.getStackSize(); i++) {
       //blur, the gaussian blur plugin uses only floating point images
       ImageProcessor ip;
@@ -534,8 +537,34 @@ public class Process {
                 ? (image.getProcessor().convertToFloat())
                 : (image.getStack().getProcessor(i).convertToFloat());
       }
-      stack.addSlice(i+"", ip);
+      stack.addSlice(i + "", ip);
     }
-    return new ImagePlus("",stack);
+    return new ImagePlus("", stack);
+  }
+
+  /**
+   * Saves correlation results along with parameters to a text file.
+   * @param path Path to the file
+   * @param p ui parameters
+   * @param resText text of the correlation results.
+   * @throws IOException 
+   */
+  public static void saveResults(String path, Frame.UIParams p, String resText) throws IOException {
+    BufferedWriter f = new BufferedWriter(new FileWriter(path));
+    String newLine = System.lineSeparator();
+    f.write("sigma1\t" + p.sigma1 + newLine);
+    f.write("sigma2\t" + p.sigma2 + newLine);
+    f.write("threshold1\t" + p.threshold1 + newLine);
+    f.write("threshold2\t" + p.threshold2 + newLine);
+    f.write("fillHoles1\t" + p.fillHoles1 + newLine);
+    f.write("fillHoles2\t" + p.fillHoles2 + newLine);
+    f.write("minArea1\t" + p.minArea1 + newLine);
+    f.write("minArea2\t" + p.minArea2 + newLine);
+    f.write("discardBorderTouching1\t" + p.border1 + newLine);
+    f.write("discardBorderTouching2\t" + p.border2 + newLine);
+    f.write("useMaximumProjection1\t" + p.useMaximumProjection1 + newLine);
+    f.newLine();
+    f.write(resText.replace("\n", newLine));
+    f.close();
   }
 }

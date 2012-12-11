@@ -18,6 +18,7 @@ import java.awt.Checkbox;
 import java.awt.CheckboxGroup;
 import java.awt.Choice;
 import java.awt.Dimension;
+import java.awt.FileDialog;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -66,6 +67,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
   Checkbox preview2;
   Checkbox preview3;
   Button runButton;
+  Button saveButton;
   ImagePlus resultImage;
   ImagePlus scatterPlot;
   TextPanel textOutput;
@@ -210,6 +212,12 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
     runButton.addActionListener(this);
     pos = new GridBagConstraints(5, 11, 1, 1, 0, 0, LINE_END, NONE, insets, 0, 0);
     this.add(runButton, pos);
+
+    //save button
+    saveButton = new Button("Save");
+    saveButton.addActionListener(this);
+    pos = new GridBagConstraints(0, 11, 1, 1, 0, 0, LINE_START, NONE, insets, 0, 0);
+    this.add(saveButton, pos);
 
     //correlation coefficient table
     textOutput = new TextPanel("correlation coefficient");
@@ -410,6 +418,18 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         LutLoader l = new LutLoader();
         l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
         oldParams = params;
+      } else if ("Save".equals(e.getActionCommand())) {
+        if (oldParams != null) {
+          FileDialog fd = new FileDialog(this, "Where to save", FileDialog.SAVE);
+          fd.setDirectory(getFirstImage().getOriginalFileInfo().directory);
+          fd.setFile("correlation.txt");
+          fd.setVisible(true);
+
+          if (fd.getDirectory() != null & fd.getFile() != null) {
+            String filePath = fd.getDirectory() + fd.getFile();
+            Process.saveResults(filePath, oldParams, textOutput.getText());
+          }
+        }
       }
     } catch (Throwable t) {
       StringWriter s = new StringWriter();
