@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package cz.cuni.lf1.imagej.segmentationplugin;
 
 import ij.ImagePlus;
@@ -15,7 +11,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- *
+ * Implements connected components labelling. Can be used to filter regions by their area, discard border-touching regions or create a binary mask for each region separately.
+ * Works on stacks or single images.
  * @author Matlab
  */
 public class ConnectedComponentsLabeller {

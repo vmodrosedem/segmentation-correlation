@@ -348,6 +348,10 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           } else {
             mask1 = maskMax;
           }
+
+          //split cells
+          IJ.showStatus("splitting cell regions");
+          cellMasks = Process.splitCellRegions(maskMax);
         }
         if (params.ch2changed(oldParams)) {
           IJ.showStatus("segmentation channel 2");
@@ -357,10 +361,6 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           }
           mask2 = Process.segmentStack(blured2, params.sigma2, params.threshold2, params.fillHoles2);
           Process.filterRegions(mask2, params.minArea2, params.border2);
-
-          //split cells
-          IJ.showStatus("splitting cell regions");
-          cellMasks = Process.splitCellRegions(maskMax);
         }
         textOutput.clear();
         //scattergram stack and correlation calculation
@@ -377,15 +377,16 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
             Process.andMaskStack(maskForProcessing, mask1);
             Process.andMaskStack(maskForProcessing, cellMasks[i]);
           }
-
+          
           scatterStack.addSlice("Cell " + (i + 1), Process.scattergram(getFirstImage(), getSecondImage(), maskForProcessing).getProcessor());
           double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
           textOutput.appendWithoutUpdate(String.format("%d\t%.4f", (i + 1), pcc));
         }
         //all cells
-        Process.andMaskStack(mask2, mask1);
-        scatterStack.addSlice("all cells", Process.scattergram(getFirstImage(), getSecondImage(), mask2).getProcessor());
-        double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), mask2);
+        ImagePlus andedMask = mask2.duplicate();
+        Process.andMaskStack(andedMask, mask1);
+        scatterStack.addSlice("all cells", Process.scattergram(getFirstImage(), getSecondImage(), andedMask).getProcessor());
+        double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), andedMask);
         textOutput.appendLine(String.format("all\t%.4f", pcc));
         //roi
         Roi roi = selectROI();
@@ -407,7 +408,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         //show preview
         IJ.showStatus("generating preview image");
         Process.drawOutlineStack(imageToShow, mask1, 0x00ff00); //green
-        Process.drawOutlineStack(imageToShow, mask2, 0xff0000); //red
+        Process.drawOutlineStack(imageToShow, andedMask, 0xff0000); //red
         getResultImage().setStack(imageToShow.getStack());
         getResultImage().show();
         Process.drawCellNumbers(getResultImage(), cellMasks);

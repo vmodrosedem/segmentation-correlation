@@ -544,16 +544,17 @@ public class Process {
 
   /**
    * Saves correlation results along with parameters to a text file.
+   *
    * @param path Path to the file
    * @param p ui parameters
    * @param resText text of the correlation results.
-   * @throws IOException 
+   * @throws IOException
    */
   public static void saveResults(String path, Frame.UIParams p, String resText) throws IOException {
     BufferedWriter f = new BufferedWriter(new FileWriter(path));
     String newLine = System.lineSeparator();
-    f.write("sigma1\t" + p.sigma1 + newLine);
-    f.write("sigma2\t" + p.sigma2 + newLine);
+    f.write("sigma1\t" + String.format("%f", p.sigma1) + newLine);
+    f.write("sigma2\t" + String.format("%f", p.sigma2) + newLine);
     f.write("threshold1\t" + p.threshold1 + newLine);
     f.write("threshold2\t" + p.threshold2 + newLine);
     f.write("fillHoles1\t" + p.fillHoles1 + newLine);
