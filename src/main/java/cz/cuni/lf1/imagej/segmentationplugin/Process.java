@@ -552,7 +552,7 @@ public class Process {
    */
   public static void saveResults(String path, Frame.UIParams p, String resText) throws IOException {
     BufferedWriter f = new BufferedWriter(new FileWriter(path));
-    String newLine = System.lineSeparator();
+    String newLine = System.getProperty("line.separator");
     f.write("sigma1\t" + String.format("%f", p.sigma1) + newLine);
     f.write("sigma2\t" + String.format("%f", p.sigma2) + newLine);
     f.write("threshold1\t" + p.threshold1 + newLine);
@@ -567,5 +567,6 @@ public class Process {
     f.newLine();
     f.write(resText.replace("\n", newLine));
     f.close();
+    
   }
 }

@@ -7,7 +7,9 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.GUI;
+import ij.gui.Overlay;
 import ij.gui.Roi;
+import ij.gui.TextRoi;
 import ij.plugin.LutLoader;
 import ij.plugin.frame.PlugInFrame;
 import ij.process.AutoThresholder;
@@ -17,6 +19,7 @@ import java.awt.Button;
 import java.awt.Checkbox;
 import java.awt.CheckboxGroup;
 import java.awt.Choice;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FileDialog;
 import java.awt.GridBagConstraints;
@@ -402,6 +405,14 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
 
         //show scattergram image
         getScatterImage().setStack(scatterStack);
+        Overlay o = new Overlay();
+        Roi textRoi = new TextRoi(4, 0, "ch2");
+        textRoi.setStrokeColor(Color.YELLOW);
+        o.add(textRoi);
+        textRoi = new TextRoi(244, 244, "ch1");
+        textRoi.setStrokeColor(Color.YELLOW);
+        o.add(textRoi);
+        getScatterImage().setOverlay(o);
         getScatterImage().show();
         getScatterImage().updateAndDraw();
 
