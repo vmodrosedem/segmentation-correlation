@@ -18,6 +18,9 @@ import java.awt.Point;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Actual image processing methods for segmentation plugin.
@@ -404,6 +407,71 @@ public class Process {
 
   }
 
+  public static double computeRandomCorrelation(ImagePlus channel1, ImagePlus channel2, ImagePlus mask) {
+    int rep = 1;
+    double[] vals = new double[rep];
+    for (int repeat = 0; repeat < rep; repeat++) {
+      List<Integer> ch2Pixels = new ArrayList<Integer>();
+
+      for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+        ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
+        ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+        for (int i = 0; i < ch2Processor.getPixelCount(); i++) {
+          if (maskProcessor.get(i) != 0) {
+            ch2Pixels.add(ch2Processor.get(i));
+          }
+        }
+      }
+      Collections.shuffle(ch2Pixels);
+
+      //first pass, compute means
+      double ch1Sum = 0;
+      double ch2Sum = 0;
+      int pixels = 0;
+      for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+        ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+        ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+        for (int i = 0; i < ch1Processor.getPixelCount(); i++) {
+          if (maskProcessor.get(i) != 0) {
+            ch1Sum += ch1Processor.get(i);
+            ch2Sum += ch2Pixels.get(pixels);
+            pixels++;
+          }
+        }
+      }
+      double ch1Mean = ch1Sum / pixels;
+      double ch2Mean = ch2Sum / pixels;
+
+      //second pass, compute sums
+      double sumRG = 0;
+      double sumRSquared = 0;
+      double sumGSquared = 0;
+      pixels = 0;
+      for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+        ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+        ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+        for (int i = 0; i < ch1Processor.getPixelCount(); i++) {
+          if (maskProcessor.get(i) != 0) {
+            double dif = ch1Processor.get(i) - ch1Mean;
+            sumRSquared += dif * dif;
+            double dif2 = ch2Pixels.get(pixels) - ch2Mean;
+            sumRG += dif * dif2;
+            sumGSquared += dif2 * dif2;
+            pixels++;
+          }
+        }
+      }
+      //IJ.showMessage("ch1Mean: " + ch1Mean + "\nch2Mean: " + ch2Mean + "\nsumRG: " + sumRG + "\nsumRSquared: " + sumRSquared + "\nsumGSquared: " + sumGSquared);
+      vals[repeat] = sumRG / Math.sqrt(sumRSquared * sumGSquared);
+    }
+    
+    double sum = 0;
+    for(int i = 0; i < rep; i++){
+      sum += vals[i];
+    }
+    return sum/rep;
+  }
+
   /**
    * Using connected components labelling. Splits separated regions and returns
    * a mask image for eachseparated region.
@@ -567,6 +635,6 @@ public class Process {
     f.newLine();
     f.write(resText.replace("\n", newLine));
     f.close();
-    
+
   }
 }

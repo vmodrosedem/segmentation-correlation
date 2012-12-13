@@ -224,7 +224,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
 
     //correlation coefficient table
     textOutput = new TextPanel("correlation coefficient");
-    textOutput.setColumnHeadings("Cell #\tPearson'scorrelation coefficient");
+    textOutput.setColumnHeadings("Cell #\tPearson'scorrelation coefficient\trandomized PCC");
     Dimension dim = textOutput.getMinimumSize();
     dim.height = 150;
     textOutput.setPreferredSize(dim);
@@ -383,14 +383,16 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           
           scatterStack.addSlice("Cell " + (i + 1), Process.scattergram(getFirstImage(), getSecondImage(), maskForProcessing).getProcessor());
           double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
-          textOutput.appendWithoutUpdate(String.format("%d\t%.4f", (i + 1), pcc));
+          double randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
+          textOutput.appendWithoutUpdate(String.format("%d\t%.4f\t%.4f", (i + 1), pcc, randomPcc));
         }
         //all cells
         ImagePlus andedMask = mask2.duplicate();
         Process.andMaskStack(andedMask, mask1);
         scatterStack.addSlice("all cells", Process.scattergram(getFirstImage(), getSecondImage(), andedMask).getProcessor());
         double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), andedMask);
-        textOutput.appendLine(String.format("all\t%.4f", pcc));
+        double randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), andedMask);
+        textOutput.appendLine(String.format("all\t%.4f\t%.4f", pcc, randomPcc));
         //roi
         Roi roi = selectROI();
         if (roi != null) {
@@ -398,7 +400,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           roiMask.getProcessor().setColor(255);
           roiMask.getProcessor().fill(roi);
           pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
-          textOutput.appendLine(String.format("ROI\t%.4f", pcc));
+          randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), roiMask);
+          textOutput.appendLine(String.format("ROI\t%.4f\t%.4f", pcc, randomPcc));
 
           scatterStack.addSlice("ROI", Process.scattergram(getFirstImage(), getSecondImage(), roiMask).getProcessor());
         }
