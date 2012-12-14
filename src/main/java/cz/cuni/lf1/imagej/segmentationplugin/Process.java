@@ -464,12 +464,98 @@ public class Process {
       //IJ.showMessage("ch1Mean: " + ch1Mean + "\nch2Mean: " + ch2Mean + "\nsumRG: " + sumRG + "\nsumRSquared: " + sumRSquared + "\nsumGSquared: " + sumGSquared);
       vals[repeat] = sumRG / Math.sqrt(sumRSquared * sumGSquared);
     }
-    
+
     double sum = 0;
-    for(int i = 0; i < rep; i++){
+    for (int i = 0; i < rep; i++) {
       sum += vals[i];
     }
-    return sum/rep;
+    return sum / rep;
+  }
+
+  public static double computeSRC(ImagePlus channel1, ImagePlus channel2, ImagePlus mask) {
+    //compute stack histograms
+    double[] ch1lut = new double[65536];
+    double[] ch2lut = new double[65536];
+    for(int i = 0; i < ch1lut.length; i++){
+      ch1lut[i] = 0;
+      ch2lut[i] = 0;
+    }
+    for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+      ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+      ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
+      ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+      for (int i = 0; i < ch2Processor.getPixelCount(); i++) {
+        if (maskProcessor.get(i) != 0) {
+          ch1lut[ch1Processor.get(i)]++;
+          ch2lut[ch2Processor.get(i)]++;
+        }
+      }
+    }
+    //create rank lut from histogram
+    int processed1 = 0;
+    int processed2 = 0;
+    for(int i = 0; i < ch1lut.length; i++){
+      if(ch1lut[i] != 0){
+        double val = ch1lut[i];
+        double nextRank = processed1+1;
+        double rank = (2*nextRank+val-1)/2;
+        ch1lut[i] = rank;
+        processed1+= val;
+      }else{
+        ch1lut[i] = processed1;
+      }
+      if(ch2lut[i] != 0){
+        double val = ch2lut[i];
+        double nextRank = processed2+1;
+        double rank = (2*nextRank+val-1)/2;
+        ch2lut[i] = rank;
+        processed2+= val;
+      }else{
+        ch2lut[i] = processed2;
+      }
+    }
+
+    //first pass, compute means
+    double ch1Sum = 0;
+    double ch2Sum = 0;
+    int pixels = 0;
+    for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+      ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+      ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
+      ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+      for (int i = 0; i < ch1Processor.getPixelCount(); i++) {
+        if (maskProcessor.get(i) != 0) {
+          ch1Sum += ch1lut[ch1Processor.get(i)];
+          ch2Sum += ch2lut[ch2Processor.get(i)];
+          pixels++;
+        }
+      }
+    }
+    double ch1Mean = ch1Sum / pixels;
+    double ch2Mean = ch2Sum / pixels;
+
+    //second pass, compute sums
+    double sumRG = 0;
+    double sumRSquared = 0;
+    double sumGSquared = 0;
+    pixels = 0;
+    for (int slice = 1; slice <= channel1.getStackSize(); slice++) {
+      ImageProcessor ch1Processor = (channel1.getStackSize() == 1) ? channel1.getProcessor() : channel1.getStack().getProcessor(slice);
+      ImageProcessor ch2Processor = (channel2.getStackSize() == 1) ? channel2.getProcessor() : channel2.getStack().getProcessor(slice);
+      ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+      for (int i = 0; i < ch1Processor.getPixelCount(); i++) {
+        if (maskProcessor.get(i) != 0) {
+          double dif = ch1lut[ch1Processor.get(i)] - ch1Mean;
+          sumRSquared += dif * dif;
+          double dif2 = ch2lut[ch2Processor.get(i)] - ch2Mean;
+          sumRG += dif * dif2;
+          sumGSquared += dif2 * dif2;
+          pixels++;
+        }
+      }
+
+    }
+    return sumRG / Math.sqrt(sumRSquared * sumGSquared);
   }
 
   /**

@@ -224,7 +224,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
 
     //correlation coefficient table
     textOutput = new TextPanel("correlation coefficient");
-    textOutput.setColumnHeadings("Cell #\tPearson'scorrelation coefficient\trandomized PCC");
+    textOutput.setColumnHeadings("Cell #\tPCC\tSRC\trandomized PCC");
     Dimension dim = textOutput.getMinimumSize();
     dim.height = 150;
     textOutput.setPreferredSize(dim);
@@ -380,11 +380,12 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
             Process.andMaskStack(maskForProcessing, mask1);
             Process.andMaskStack(maskForProcessing, cellMasks[i]);
           }
-          
+
           scatterStack.addSlice("Cell " + (i + 1), Process.scattergram(getFirstImage(), getSecondImage(), maskForProcessing).getProcessor());
           double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
           double randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
-          textOutput.appendWithoutUpdate(String.format("%d\t%.4f\t%.4f", (i + 1), pcc, randomPcc));
+          double src = Process.computeSRC(getFirstImage(), getSecondImage(), maskForProcessing);
+          textOutput.appendWithoutUpdate(String.format("%d\t%.4f\t%.4f\t%.4f", (i + 1), pcc, src, randomPcc));
         }
         //all cells
         ImagePlus andedMask = mask2.duplicate();
@@ -392,7 +393,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         scatterStack.addSlice("all cells", Process.scattergram(getFirstImage(), getSecondImage(), andedMask).getProcessor());
         double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), andedMask);
         double randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), andedMask);
-        textOutput.appendLine(String.format("all\t%.4f\t%.4f", pcc, randomPcc));
+        double src = Process.computeSRC(getFirstImage(), getSecondImage(), andedMask);
+        textOutput.appendLine(String.format("all\t%.4f\t%.4f\t%.4f", pcc, src, randomPcc));
         //roi
         Roi roi = selectROI();
         if (roi != null) {
@@ -401,7 +403,8 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           roiMask.getProcessor().fill(roi);
           pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
           randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), roiMask);
-          textOutput.appendLine(String.format("ROI\t%.4f\t%.4f", pcc, randomPcc));
+          src = Process.computeSRC(getFirstImage(), getSecondImage(), roiMask);
+          textOutput.appendLine(String.format("ROI\t%.4f\t%.4f\t%.4f", pcc, src, randomPcc));
 
           scatterStack.addSlice("ROI", Process.scattergram(getFirstImage(), getSecondImage(), roiMask).getProcessor());
         }
