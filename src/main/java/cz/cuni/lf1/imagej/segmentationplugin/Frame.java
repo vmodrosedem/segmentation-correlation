@@ -439,7 +439,9 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
       } else if ("Save".equals(e.getActionCommand())) {
         if (oldParams != null) {
           FileDialog fd = new FileDialog(this, "Where to save", FileDialog.SAVE);
-          fd.setDirectory(getFirstImage().getOriginalFileInfo().directory);
+          if(getFirstImage() != null && getFirstImage().getOriginalFileInfo() != null){
+            fd.setDirectory(getFirstImage().getOriginalFileInfo().directory);
+          }
           fd.setFile("correlation.txt");
           fd.setVisible(true);
 
