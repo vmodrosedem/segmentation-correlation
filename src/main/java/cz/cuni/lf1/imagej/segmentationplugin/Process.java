@@ -557,6 +557,34 @@ public class Process {
     }
     return sumRG / Math.sqrt(sumRSquared * sumGSquared);
   }
+  
+  /**
+   * 
+   * @param image
+   * @param mask
+   * @return double[3] {area, intensitySum, avgIntensity}
+   */
+  public static double[] computeIntensity(ImagePlus image, ImagePlus mask) {
+    long area = 0;
+    long intensitySum = 0;
+    for (int slice = 1; slice <= image.getStackSize(); slice++) {
+    ImageProcessor imageProcessor = (image.getStackSize() == 1) ? image.getProcessor() : image.getStack().getProcessor(slice);
+      ImageProcessor maskProcessor = (mask.getStackSize() == 1) ? mask.getProcessor() : mask.getStack().getProcessor(slice);
+      for (int i = 0; i < imageProcessor.getPixelCount(); i++) {
+        if (maskProcessor.get(i) != 0) {
+          long oldIntensitySum = intensitySum;
+          area++;
+          intensitySum += imageProcessor.get(i);
+          if(oldIntensitySum> intensitySum){
+            IJ.error("intensity overflow");
+          }
+        }
+      }
+    }
+    double avgIntensity = (area !=0)?((double)intensitySum/(double)area):0;
+    double[] results = new double[]{area, intensitySum, avgIntensity};
+    return results;
+  }
 
   /**
    * Using connected components labelling. Splits separated regions and returns

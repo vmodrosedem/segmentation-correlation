@@ -224,7 +224,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
 
     //correlation coefficient table
     textOutput = new TextPanel("correlation coefficient");
-    textOutput.setColumnHeadings("Cell #\tPCC\tSRC\trandomized PCC");
+    textOutput.setColumnHeadings("Cell #\tPCC\tSRC\trandomized PCC\tarea\tch1 avg intensity\tch2 avg intensity");
     Dimension dim = textOutput.getMinimumSize();
     dim.height = 150;
     textOutput.setPreferredSize(dim);
@@ -385,7 +385,10 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
           double randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), maskForProcessing);
           double src = Process.computeSRC(getFirstImage(), getSecondImage(), maskForProcessing);
-          textOutput.appendWithoutUpdate(String.format("%d\t%.4f\t%.4f\t%.4f", (i + 1), pcc, src, randomPcc));
+          double[] ch1IntensityResults = Process.computeIntensity(getFirstImage(), maskForProcessing);
+          double[] ch2IntensityResults = Process.computeIntensity(getSecondImage(), maskForProcessing);
+          textOutput.appendWithoutUpdate(String.format("%d\t%.4f\t%.4f\t%.4f\t%.0f\t%.4f\t%.4f",
+                  (i + 1), pcc, src, randomPcc, ch1IntensityResults[0], ch1IntensityResults[2], ch2IntensityResults[2]));
         }
         //all cells
         ImagePlus andedMask = mask2.duplicate();
@@ -394,7 +397,10 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         double pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), andedMask);
         double randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), andedMask);
         double src = Process.computeSRC(getFirstImage(), getSecondImage(), andedMask);
-        textOutput.appendLine(String.format("all\t%.4f\t%.4f\t%.4f", pcc, src, randomPcc));
+        double[] ch1IntensityResults = Process.computeIntensity(getFirstImage(), andedMask);
+        double[] ch2IntensityResults = Process.computeIntensity(getSecondImage(), andedMask);
+        textOutput.appendLine(String.format("all\t%.4f\t%.4f\t%.4f\t%.0f\t%.4f\t%.4f", 
+                pcc, src, randomPcc, ch1IntensityResults[0], ch1IntensityResults[2], ch2IntensityResults[2]));
         //roi
         Roi roi = selectROI();
         if (roi != null) {
@@ -404,8 +410,10 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
           pcc = Process.computeCorrelation(getFirstImage(), getSecondImage(), roiMask);
           randomPcc = Process.computeRandomCorrelation(getFirstImage(), getSecondImage(), roiMask);
           src = Process.computeSRC(getFirstImage(), getSecondImage(), roiMask);
-          textOutput.appendLine(String.format("ROI\t%.4f\t%.4f\t%.4f", pcc, src, randomPcc));
-
+          ch1IntensityResults = Process.computeIntensity(getFirstImage(), roiMask);
+          ch2IntensityResults = Process.computeIntensity(getSecondImage(), roiMask);
+          textOutput.appendLine(String.format("ROI\t%.4f\t%.4f\t%.4f\t%.0f\t%.4f\t%.4f", 
+                  pcc, src, randomPcc, ch1IntensityResults[0], ch1IntensityResults[2], ch2IntensityResults[2]));
           scatterStack.addSlice("ROI", Process.scattergram(getFirstImage(), getSecondImage(), roiMask).getProcessor());
         }
 
