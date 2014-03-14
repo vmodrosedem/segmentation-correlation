@@ -442,7 +442,7 @@ public class Frame extends PlugInFrame implements ImageListener, ActionListener,
         //change lookup table of scattergram to red hot
         WindowManager.setTempCurrentImage(getScatterImage());
         LutLoader l = new LutLoader();
-        l.run(IJ.getDirectory("luts") + "Red Hot" + ".lut");
+        l.run("fire");
         oldParams = params;
       } else if ("Save".equals(e.getActionCommand())) {
         if (oldParams != null) {
